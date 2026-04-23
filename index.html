@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixcii | Unified Stylized Art Platform</title>
+    <meta name="description" content="Convert images to ASCII, Line Art, Typography, and Halftone patterns. High-quality professional exports." />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+      <header class="header">
+        <div class="logo">
+          <span class="logo-icon">◈</span>
+          <h1>Pixcii</h1><span class="badge-studio">Studio</span>
+        </div>
+        
+        <nav class="mode-tabs">
+          <button class="mode-tab active" data-mode="ascii">ASCII Art</button>
+          <button class="mode-tab" data-mode="line">Line Art</button>
+          <button class="mode-tab" data-mode="typography">Typography</button>
+          <button class="mode-tab" data-mode="halftone">Halftone</button>
+        </nav>
+
+        <div class="header-actions">
+          <button id="theme-toggle" class="btn-icon" title="Toggle Theme">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          </button>
+          <a href="https://github.com" class="btn-icon" target="_blank">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          </a>
+        </div>
+      </header>
+
+      <main class="container">
+        <section class="workspace">
+          <div id="drop-zone" class="drop-zone">
+            <div class="drop-zone-content">
+              <div class="upload-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+              </div>
+              <p class="upload-text">Drag & drop an image or <span>click to browse</span></p>
+              <p class="upload-hint">PNG, JPG, WEBP, or Paste directly</p>
+              <input type="file" id="file-input" accept="image/*" hidden />
+            </div>
+          </div>
+
+          <div id="preview-container" class="preview-container hidden">
+            <div class="preview-header">
+              <div class="preview-tabs">
+                <button class="tab-btn active" data-tab="art">Preview</button>
+                <button class="tab-btn" data-tab="original">Original</button>
+              </div>
+              <div class="preview-actions">
+                <button id="copy-btn" class="btn btn-secondary" title="Copy Text">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  Copy Text
+                </button>
+                <button id="copy-svg-btn" class="btn btn-secondary" title="Copy SVG">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 20 20"/></svg>
+                  Copy SVG
+                </button>
+                <button id="reset-btn" class="btn btn-ghost">Reset</button>
+              </div>
+            </div>
+            <div class="preview-viewport">
+              <div id="canvas-container" class="canvas-container hidden">
+                <canvas id="art-canvas"></canvas>
+              </div>
+              <pre id="ascii-output" class="ascii-output"></pre>
+              <img id="original-image" class="original-image hidden" alt="Original" />
+            </div>
+          </div>
+        </section>
+
+        <aside class="sidebar">
+          <div class="panel">
+            <h2 class="panel-title">Shared Settings</h2>
+            <div class="control-group">
+              <div class="control-header">
+                <label>Density</label>
+                <span id="density-value" class="badge">100</span>
+              </div>
+              <input type="range" id="density-slider" min="20" max="300" value="100" />
+            </div>
+            <div class="control-group">
+              <div class="control-header">
+                <label>Contrast</label>
+                <span id="contrast-value" class="badge">1.2</span>
+              </div>
+              <input type="range" id="contrast-slider" min="0.5" max="2.5" step="0.1" value="1.2" />
+            </div>
+            <div class="control-group">
+              <div class="control-header">
+                <label>Brightness</label>
+                <span id="brightness-value" class="badge">1.0</span>
+              </div>
+              <input type="range" id="brightness-slider" min="0.5" max="2.0" step="0.1" value="1.0" />
+            </div>
+          </div>
+
+          <!-- Mode Specific Panels -->
+          <div id="ascii-controls" class="panel mode-panel">
+            <h2 class="panel-title">ASCII Styles</h2>
+            <div class="style-selector">
+              <label class="style-option" title="Detailed">
+                <input type="radio" name="style-mode" value="detailed" checked>
+                <div class="style-card">
+                  <span>Detailed</span>
+                </div>
+              </label>
+              <label class="style-option" title="Smooth">
+                <input type="radio" name="style-mode" value="smooth">
+                <div class="style-card">
+                  <span>Smooth</span>
+                </div>
+              </label>
+              <label class="style-option" title="Block">
+                <input type="radio" name="style-mode" value="block">
+                <div class="style-card">
+                  <span>Block</span>
+                </div>
+              </label>
+              <label class="style-option" title="Terminal">
+                <input type="radio" name="style-mode" value="terminal">
+                <div class="style-card">
+                  <span>Terminal</span>
+                </div>
+              </label>
+            </div>
+            <div class="control-toggle mt-1">
+              <label class="switch">
+                <input type="checkbox" id="edge-toggle" checked>
+                <span class="slider round"></span>
+              </label>
+              <span>Edge Enhancement</span>
+            </div>
+            <div class="control-toggle">
+              <label class="switch">
+                <input type="checkbox" id="color-toggle">
+                <span class="slider round"></span>
+              </label>
+              <span>Color Mode</span>
+            </div>
+          </div>
+
+          <div id="line-controls" class="panel mode-panel hidden">
+            <h2 class="panel-title">Line Art Settings</h2>
+            <div class="control-group">
+              <div class="control-header">
+                <label>Edge Threshold</label>
+                <span id="threshold-value" class="badge">50</span>
+              </div>
+              <input type="range" id="threshold-slider" min="10" max="150" value="50" />
+            </div>
+            <div class="control-group">
+              <label>Stroke Color</label>
+              <input type="color" id="line-color" value="#ffffff" style="height: 40px;" />
+            </div>
+          </div>
+
+          <div id="typography-controls" class="panel mode-panel hidden">
+            <h2 class="panel-title">Typography Settings</h2>
+            <div class="control-group">
+              <label>Custom Text</label>
+              <input type="text" id="typo-text" value="PIXCII" placeholder="Enter word..." />
+            </div>
+            <div class="control-group">
+              <div class="control-header">
+                <label>Scale Variation</label>
+              </div>
+              <input type="range" id="typo-scale" min="0.5" max="2.0" step="0.1" value="1.0" />
+            </div>
+          </div>
+
+          <div id="halftone-controls" class="panel mode-panel hidden">
+            <h2 class="panel-title">Halftone Settings</h2>
+            <div class="control-group">
+              <label>Dot Shape</label>
+              <div class="style-selector">
+                <label class="style-option">
+                  <input type="radio" name="halftone-shape" value="circle" checked>
+                  <div class="style-card"><span>Circle</span></div>
+                </label>
+                <label class="style-option">
+                  <input type="radio" name="halftone-shape" value="square">
+                  <div class="style-card"><span>Square</span></div>
+                </label>
+              </div>
+            </div>
+            <div class="control-group">
+              <div class="control-header">
+                <label>Dot Spacing</label>
+                <span id="spacing-value" class="badge">1.0</span>
+              </div>
+              <input type="range" id="spacing-slider" min="0.5" max="2.0" step="0.1" value="1.0" />
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2 class="panel-title">Export Assets</h2>
+            <div class="export-grid">
+              <button id="export-png" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                PNG
+              </button>
+              <button id="export-svg" class="btn btn-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                SVG
+              </button>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+      <footer class="footer">
+        <p>Designed for clarity <span style="color: #7c3aed;">•</span> Built for speed.</p>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
