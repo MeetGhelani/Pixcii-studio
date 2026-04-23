@@ -27,8 +27,6 @@
 
 ## 📸 Screenshots
 
-> [!TIP]
-> Add your screenshots to the `./docs/screenshots/` folder and name them accordingly.
 
 ![Main Dashboard](./docs/screenshots/dashboard.png)
 *The Pixcii Studio Dashboard in Dark Mode*
