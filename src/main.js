@@ -31,6 +31,8 @@ const thresholdValue = document.getElementById('threshold-value');
 const lineColorPicker = document.getElementById('line-color');
 const typoTextInput = document.getElementById('typo-text');
 const typoScaleSlider = document.getElementById('typo-scale');
+const typoThresholdSlider = document.getElementById('typo-threshold-slider');
+const typoThresholdValue = document.getElementById('typo-threshold-value');
 const spacingSlider = document.getElementById('spacing-slider');
 const spacingValue = document.getElementById('spacing-value');
 
@@ -93,7 +95,7 @@ fileInput.addEventListener('change', (e) => {
   if (file) loadImage(file);
 });
 
-[densitySlider, contrastSlider, brightnessSlider, thresholdSlider, typoScaleSlider, spacingSlider, edgeToggle, colorToggle, lineColorPicker, typoTextInput].forEach(el => {
+[densitySlider, contrastSlider, brightnessSlider, thresholdSlider, typoScaleSlider, typoThresholdSlider, spacingSlider, edgeToggle, colorToggle, lineColorPicker, typoTextInput].forEach(el => {
   el.addEventListener('input', () => {
     updateBadgeValues();
     if (currentImage) processImage();
@@ -164,7 +166,7 @@ function processImage() {
     mode: document.querySelector('input[name="style-mode"]:checked')?.value,
     edgeEnhancement: edgeToggle.checked,
     colorMode: colorToggle.checked,
-    threshold: parseInt(thresholdSlider.value),
+    threshold: platformMode === 'typography' ? parseInt(typoThresholdSlider.value) : parseInt(thresholdSlider.value),
     typoText: typoTextInput.value,
     typoScale: parseFloat(typoScaleSlider.value),
     halftoneShape: document.querySelector('input[name="halftone-shape"]:checked')?.value,
@@ -203,7 +205,7 @@ function fitTextToFrame(text) {
   const fontSizeW = (containerWidth / numCols) / 0.6;
   const fontSizeH = containerHeight / numRows;
   
-  const optimalFontSize = Math.min(fontSizeW, fontSizeH) * 0.98;
+  const optimalFontSize = (Math.min(fontSizeW, fontSizeH) * 0.98) * (platformMode === 'typography' ? parseFloat(typoScaleSlider.value) : 1.0);
   asciiOutput.style.fontSize = `${optimalFontSize}px`;
   asciiOutput.style.lineHeight = `${optimalFontSize}px`;
 }
@@ -258,6 +260,7 @@ function updateBadgeValues() {
   contrastValue.textContent = contrastSlider.value;
   brightnessValue.textContent = brightnessSlider.value;
   thresholdValue.textContent = thresholdSlider.value;
+  if (typoThresholdValue) typoThresholdValue.textContent = typoThresholdSlider.value;
   spacingValue.textContent = spacingSlider.value;
 }
 

@@ -119,14 +119,14 @@ function handleLineArt(data, width, height, settings) {
 
 function handleTypography(data, width, height, settings) {
   const text = settings.typoText || 'PIXCII';
-  const scale = settings.typoScale || 1.0;
+  const threshold = settings.threshold || 128;
   let ascii = '';
   let charIdx = 0;
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const lum = data[(y * width + x) * 4];
-      if (lum < 200) { // Only draw text on non-white areas
+      if (lum < threshold) { 
         ascii += text[charIdx % text.length];
         charIdx++;
       } else {
