@@ -2,16 +2,18 @@
 
 self.onmessage = function(e) {
   const { imageData, width, height, settings, platformMode } = e.data;
-  const { density, contrast, brightness } = settings;
+  const { contrast, brightness, gamma, invert } = settings;
 
   const data = imageData.data;
-  const numPixels = width * height;
-  
-  // Shared Pre-processing (Grayscale + Contrast + Brightness)
   const processedData = new Uint8ClampedArray(data.length);
+
+  // 1. Shared Pre-processing
   const adjust = (val) => {
+    // Contrast & Brightness
     let v = (val / 255 - 0.5) * contrast + 0.5;
     v *= brightness;
+    // Gamma
+    v = Math.pow(Math.max(0, v), 1 / gamma);
     return Math.max(0, Math.min(1, v)) * 255;
   };
 
@@ -21,11 +23,15 @@ self.onmessage = function(e) {
     let r = adjust(data[i]);
     let g = adjust(data[i + 1]);
     let b = adjust(data[i + 2]);
-    const lum = getLuminance(r, g, b);
+    let lum = getLuminance(r, g, b);
+    
+    if (invert) lum = 255 - lum;
+
     processedData[i] = processedData[i+1] = processedData[i+2] = lum;
     processedData[i+3] = data[i+3];
   }
 
+  // 2. Route to Generator
   if (platformMode === 'ascii') {
     handleAscii(processedData, width, height, settings);
   } else if (platformMode === 'line') {
@@ -38,19 +44,21 @@ self.onmessage = function(e) {
 };
 
 function handleAscii(data, width, height, settings) {
-  const { mode, edgeEnhancement, colorMode } = settings;
+  const { mode, edgeEnhancement, customRamp } = settings;
   const charsets = {
     detailed: '@%#*+=-:. '.split(''),
     smooth: '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,"^`\'. '.split(''),
     block: '█▓▒░ '.split(''),
     terminal: '#+-:. '.split('')
   };
-  const charset = charsets[mode] || charsets.detailed;
+  
+  let charset = charsets[mode] || charsets.detailed;
+  if (customRamp && customRamp.trim().length > 0) {
+    charset = customRamp.split('');
+  }
   const numChars = charset.length;
 
   let ascii = '';
-  let colorData = [];
-
   const gx = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
   const gy = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
 
@@ -64,9 +72,8 @@ function handleAscii(data, width, height, settings) {
         let valX = 0, valY = 0;
         for (let ky = -1; ky <= 1; ky++) {
           for (let kx = -1; kx <= 1; kx++) {
-            const kidx = ((y + ky) * width + (x + kx)) * 4;
-            valX += data[kidx] * gx[ky + 1][kx + 1];
-            valY += data[kidx] * gy[ky + 1][kx + 1];
+            valX += data[((y + ky) * width + (x + kx)) * 4] * gx[ky + 1][kx + 1];
+            valY += data[((y + ky) * width + (x + kx)) * 4] * gy[ky + 1][kx + 1];
           }
         }
         const mag = Math.sqrt(valX * valX + valY * valY);
@@ -92,7 +99,7 @@ function handleAscii(data, width, height, settings) {
 }
 
 function handleLineArt(data, width, height, settings) {
-  const threshold = settings.threshold || 50;
+  const { threshold, thickness } = settings;
   const result = new Uint8ClampedArray(width * height * 4);
   
   const gx = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
@@ -108,27 +115,50 @@ function handleLineArt(data, width, height, settings) {
         }
       }
       const mag = Math.sqrt(valX * valX + valY * valY);
-      const idx = (y * width + x) * 4;
       const v = mag > threshold ? 255 : 0;
-      result[idx] = result[idx+1] = result[idx+2] = v;
-      result[idx+3] = 255;
+      
+      if (v === 255) {
+        // Apply thickness (dilation-like effect)
+        const t = Math.floor(thickness);
+        for (let ty = -t; ty <= t; ty++) {
+          for (let tx = -t; tx <= t; tx++) {
+            const ry = y + ty;
+            const rx = x + tx;
+            if (ry >= 0 && ry < height && rx >= 0 && rx < width) {
+              const ridx = (ry * width + rx) * 4;
+              result[ridx] = result[ridx+1] = result[ridx+2] = 255;
+              result[ridx+3] = 255;
+            }
+          }
+        }
+      }
     }
   }
   self.postMessage({ type: 'line', imageData: result, width, height });
 }
 
 function handleTypography(data, width, height, settings) {
-  const text = settings.typoText || 'PIXCII';
+  const words = (settings.typoText || 'PIXCII').split(/\s+/);
   const threshold = settings.threshold || 128;
+  const spacing = settings.spacing || 1.0;
+  
   let ascii = '';
-  let charIdx = 0;
+  let wordIdx = 0;
+  let charInWordIdx = 0;
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const lum = data[(y * width + x) * 4];
-      if (lum < threshold) { 
-        ascii += text[charIdx % text.length];
-        charIdx++;
+      if (lum < threshold) {
+        const currentWord = words[wordIdx % words.length];
+        ascii += currentWord[charInWordIdx % currentWord.length];
+        charInWordIdx++;
+        if (charInWordIdx >= currentWord.length) {
+          charInWordIdx = 0;
+          wordIdx++;
+          // Add spacing if requested
+          if (spacing > 1.2) ascii += ' '; 
+        }
       } else {
         ascii += ' ';
       }
@@ -139,16 +169,27 @@ function handleTypography(data, width, height, settings) {
 }
 
 function handleHalftone(data, width, height, settings) {
-  const shape = settings.halftoneShape || 'circle';
-  const spacing = settings.spacing || 1.0;
+  const { shape, spacing, rotation } = settings;
   const dots = [];
+  const rad = (rotation * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const lum = data[(y * width + x) * 4];
-      const radius = (1 - lum / 255) * 0.5 * spacing;
-      if (radius > 0.05) {
-        dots.push({ x, y, r: radius, shape });
+  for (let y = 0; y < height; y += spacing) {
+    for (let x = 0; x < width; x += spacing) {
+      // Rotate grid coordinate
+      const rx = Math.floor(x * cos - y * sin);
+      const ry = Math.floor(x * sin + y * cos);
+      
+      const srcX = Math.floor(x);
+      const srcY = Math.floor(y);
+      
+      if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
+        const lum = data[(srcY * width + srcX) * 4];
+        const r = (1 - lum / 255) * 0.5 * spacing;
+        if (r > 0.05) {
+          dots.push({ x: srcX, y: srcY, r, shape });
+        }
       }
     }
   }

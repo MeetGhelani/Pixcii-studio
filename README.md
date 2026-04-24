@@ -1,49 +1,56 @@
 # ◈ Pixcii Studio
 
-**Pixcii Studio** is a premium, high-fidelity image stylization platform that converts your photos into stunning ASCII, Line Art, Typography, and Halftone patterns. Built for designers, developers, and digital artists, it focuses on crisp output, modern aesthetics, and professional-grade exports.
+**Pixcii Studio** is a premium, high-fidelity image stylization platform that converts your photos into stunning ASCII, Line Art, Typography, and Halftone patterns. Built for designers, developers, and digital artists, it focuses on crisp output, modern aesthetics, and professional-grade performance.
 
 ---
 
-## ✨ Features
+## ✨ Advanced Features
 
-### 1. ASCII Art Generator
-- **Detailed Mode**: High-density mapping for complex textures.
-- **Smooth Mode**: Balanced character sets for a clean look.
-- **Block Mode**: Bold, structural output using Unicode blocks.
-- **Terminal Mode**: Classic retro-tech aesthetic.
+### 1. High-Fidelity Color Studio
+- **Precision Picker**: Floating, sidebar-docked HSVA color picker for seamless side-by-side editing.
+- **Gradient Engine**: Support for both **Linear** and **Radial** gradients with adjustable angles.
+- **State Sync**: Real-time synchronization between the color map, hex inputs, and live artwork.
 
-### 2. Typography Art
-- Rebuild any image using custom words or phrases.
-- Perfect for creative posters, brand identity, and social media.
+### 2. Multi-Mode Art Generation
+- **ASCII Art**: Detailed, Smooth, Block, and Terminal modes with custom character ramps.
+- **Typography Art**: Rebuild images using custom word lists—perfect for posters and brand identity.
+- **Halftone Patterns**: Professional-grade dot patterns (Circle/Square) with adjustable rotation and spacing.
+- **Line Art**: Minimalist edge-detection based visuals using Sobel operators.
 
-### 3. Halftone / Dot Art
-- Professional-grade dot patterns (Circle or Square).
-- Adjustable spacing and density for high-contrast graphic design.
+### 3. Persistence Engine
+- **Refresh-Proof Workspace**: Every adjustment—including uploaded images, sliders, and color palettes—stays intact after a page refresh.
+- **Session Recovery**: Automatically restores your entire creative environment so you can pick up exactly where you left off.
 
-### 4. Line Art
-- Minimalist edge-detection based visuals using Sobel operators.
+### 4. Professional UX & Design
+- **Safety Confirmation**: Built-in modals with glassmorphism effects to prevent accidental workspace resets.
+- **Responsive Workspace**: Optimized for high-resolution displays and tablet environments.
+- **Theme Engine**: Seamlessly toggle between a sleek Dark Mode and a crisp, high-contrast Light Mode.
 
 ---
 
-## 📸 Screenshots
+## 📸 Recommended Screenshot Updates
 
+To showcase the latest version of Pixcii Studio, please add or update the following screenshots in `./docs/screenshots/`:
 
-![Main Dashboard](./docs/screenshots/dashboard.png)
-*The Pixcii Studio Dashboard in Dark Mode*
-
+1.  **`dashboard_main.png`**: (Update) Capture the main workspace in Dark Mode showing the new navigation tabs and refined sidebar.
+2.  **`color_studio.png`**: (New) Show the floating Color Studio picker in action, ideally while selecting a vibrant gradient.
+3.  **`persistence_demo.gif`**: (New) A short recording showing a page refresh where the image and settings stay perfectly intact.
+4.  **`confirmation_modal.png`**: (New) Capture the centered glassmorphism confirmation popup.
+5.  **`light_mode_sidebar.png`**: (New) Show the refined light theme's right-side controls and improved contrast.
 
 ---
 
 ## 🚀 How to Use
 
-1. **Upload**: Drag & drop or paste an image directly into the workspace.
-2. **Switch Mode**: Select your desired generator from the top navigation bar (ASCII, Line Art, Typography, or Halftone).
-3. **Adjust Settings**:
-   - Use **Shared Settings** (Density, Contrast, Brightness) for global changes.
-   - Use **Mode-Specific Controls** to tweak details like dot shape or custom text.
+1. **Upload**: Drag & drop or browse for an image. Your image is automatically cached for session persistence.
+2. **Select Mode**: Use the top navigation to switch between ASCII, Line Art, Typography, or Halftone.
+3. **Refine**:
+   - Adjust **Preprocessing** (Density, Contrast, Gamma) to prep your source image.
+   - Use the **Generator Engine** to tweak mode-specific details.
+   - Open the **Color Studio** to apply solid colors or dynamic gradients.
 4. **Export**: 
-   - **PNG**: High-resolution anti-aliased image.
-   - **SVG**: Fully scalable vector output for use in tools like Figma or Illustrator.
+   - **PNG**: High-resolution pixel-perfect export.
+   - **SVG**: Fully scalable vector output for Figma, Illustrator, or web development.
 
 ---
 
@@ -51,8 +58,9 @@
 
 - **Core**: Vanilla JavaScript & HTML5
 - **Processing**: Multi-threaded **Web Workers** (`art-worker.js`) for near-instant previews.
-- **Styling**: Vanilla CSS with a custom **Theme Engine** (Light/Dark mode).
-- **Build Tool**: [Vite](https://vitejs.dev/) for blazing-fast development.
+- **Persistence**: **LocalStorage API** for full session and image data recovery.
+- **Styling**: Vanilla CSS with a custom **HSVA-to-Hex** color management system.
+- **Build Tool**: [Vite](https://vitejs.dev/)
 
 ---
 
@@ -72,12 +80,11 @@
 
 ## 🤝 Collaboration & Forking
 
-We welcome contributions to Pixcii Studio! Whether you're fixing a bug, adding a new generator, or improving the UI, your help is appreciated.
+We welcome contributions! Whether you're adding a new generator mode or improving the UI aesthetics, feel free to contribute.
 
-- **Forking**: Feel free to fork this repository to experiment with your own versions.
-- **Pull Requests**: If you've made an improvement, please submit a PR! We review all contributions.
-- **Issues**: Found a bug or have a feature request? Open an issue on GitHub.
-- **Collaboration**: If you're interested in a larger partnership or deep integration, reach out via GitHub or Twitter.
+- **Forking**: Feel free to fork and build your own experimental versions.
+- **Pull Requests**: Submit PRs for bug fixes or feature enhancements.
+- **Issues**: Open an issue for bugs or feature requests.
 
 ---
 
