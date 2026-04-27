@@ -1,90 +1,79 @@
 # ◈ Pixcii Studio
 
-**Pixcii Studio** is a premium, high-fidelity image stylization platform that converts your photos into stunning ASCII, Line Art, Typography, and Halftone patterns. Built for designers, developers, and digital artists, it focuses on crisp output, modern aesthetics, and professional-grade performance.
+**Pixcii Studio** is a premium, high-fidelity generative art platform that runs entirely in your browser. It transforms your photos into stunning ASCII art, Technical Blueprints, Typographic Word Clouds, and Halftone patterns. Built for designers, developers, and digital artists, it focuses on crisp vector/raster outputs, modern aesthetics, and professional-grade performance using Web Workers.
 
 ---
 
-## ✨ Advanced Features
+![Pixcii Studio Dashboard](./docs/screenshots/dashboard.png)
+
+## ✨ Generative Engines
+
+### 1. Blueprint & Schematic Mode (NEW)
+Turns your images into highly precise technical engineering drawings.
+- **Edge Detection**: Uses Sobel operators to extract stark object contours with adjustable threshold and line thickness.
+- **Dynamic Elements**: Automatically generates measurement dimension brackets (`W: x`, `H: y`), geometric background grids, and technical crosshairs.
+- **Annotation Densities**: Select from None, Minimal, Moderate, Dense, or Extreme plotting logic.
+- **Architectural Themes**: Classic (Blueprint Blue), Matrix (Green/Black), Sepia, and Midnight (Dark Purple).
+
+### 2. Canvas Typography Engine
+A completely custom, high-resolution packing engine that paints your image using words.
+- **Luminance Mapping**: Words dynamically scale and pack based on the darkness of the underlying image regions.
+- **Advanced Controls**: Customize the word dictionary, font weight, global spacing, and letter spacing.
+
+### 3. ASCII Art
+- Detailed, Smooth, Block, and Terminal algorithms.
+- Full control over character ramps and rendering density.
+
+### 4. Line Art & Halftones
+- **Line Art**: Minimalist threshold-based edge detection.
+- **Halftone Patterns**: Professional dot layouts (Circle/Square) with customizable rotation and density spacing.
+
+---
+
+## 🎨 Global Studio Features
 
 ### 1. High-Fidelity Color Studio
-- **Precision Picker**: Floating, sidebar-docked HSVA color picker for seamless side-by-side editing.
-- **Gradient Engine**: Support for both **Linear** and **Radial** gradients with adjustable angles.
-- **State Sync**: Real-time synchronization between the color map, hex inputs, and live artwork.
+- **Precision Picker**: Floating, sidebar-docked HSVA color picker.
+- **Gradient Engine**: Support for **Linear** and **Radial** gradients with adjustable angles and color stops.
+- **Edge Enhancements & Inversion**: Instantly invert output polarity or outline core structures.
 
-### 2. Multi-Mode Art Generation
-- **ASCII Art**: Detailed, Smooth, Block, and Terminal modes with custom character ramps.
-- **Typography Art**: Rebuild images using custom word lists—perfect for posters and brand identity.
-- **Halftone Patterns**: Professional-grade dot patterns (Circle/Square) with adjustable rotation and spacing.
-- **Line Art**: Minimalist edge-detection based visuals using Sobel operators.
+### 2. Post-Processing & Transformations
+- **Image Adjustments**: Fine-tune contrast, gamma, sharpness, blur, grain, and hue rotation in real-time.
+- **Canvas Control**: Pad, rotate, and horizontally/vertically flip your output for precise layout alignment.
 
-### 3. Persistence Engine
-- **Refresh-Proof Workspace**: Every adjustment—including uploaded images, sliders, and color palettes—stays intact after a page refresh.
-- **Session Recovery**: Automatically restores your entire creative environment so you can pick up exactly where you left off.
+### 3. Persistence & Performance
+- **Multi-threaded Generation**: All intensive math and edge-detection operations are offloaded to an isolated Web Worker (`art-worker.js`), ensuring the UI stays buttery smooth.
+- **Session Recovery**: Every single slider adjustment, theme preference, and uploaded image is saved automatically to `localStorage`. Refresh your tab anytime without losing your work.
+- **Dynamic Pro Tips**: Helpful UI hints adapt instantly to guide you on which type of images work best for the currently active generator.
 
-### 4. Professional UX & Design
-- **Safety Confirmation**: Built-in modals with glassmorphism effects to prevent accidental workspace resets.
-- **Responsive Workspace**: Optimized for high-resolution displays and tablet environments.
-- **Theme Engine**: Seamlessly toggle between a sleek Dark Mode and a crisp, high-contrast Light Mode.
-
----
-
-## 📸 Recommended Screenshot Updates
-
-To showcase the latest version of Pixcii Studio, please add or update the following screenshots in `./docs/screenshots/`:
-
-1.  **`dashboard_main.png`**: (Update) Capture the main workspace in Dark Mode showing the new navigation tabs and refined sidebar.
-2.  **`color_studio.png`**: (New) Show the floating Color Studio picker in action, ideally while selecting a vibrant gradient.
-3.  **`persistence_demo.gif`**: (New) A short recording showing a page refresh where the image and settings stay perfectly intact.
-4.  **`confirmation_modal.png`**: (New) Capture the centered glassmorphism confirmation popup.
-5.  **`light_mode_sidebar.png`**: (New) Show the refined light theme's right-side controls and improved contrast.
-
----
-
-## 🚀 How to Use
-
-1. **Upload**: Drag & drop or browse for an image. Your image is automatically cached for session persistence.
-2. **Select Mode**: Use the top navigation to switch between ASCII, Line Art, Typography, or Halftone.
-3. **Refine**:
-   - Adjust **Preprocessing** (Density, Contrast, Gamma) to prep your source image.
-   - Use the **Generator Engine** to tweak mode-specific details.
-   - Open the **Color Studio** to apply solid colors or dynamic gradients.
-4. **Export**: 
-   - **PNG**: High-resolution pixel-perfect export.
-   - **SVG**: Fully scalable vector output for Figma, Illustrator, or web development.
-
----
-
-## 🛠️ Technical Stack
-
-- **Core**: Vanilla JavaScript & HTML5
-- **Processing**: Multi-threaded **Web Workers** (`art-worker.js`) for near-instant previews.
-- **Persistence**: **LocalStorage API** for full session and image data recovery.
-- **Styling**: Vanilla CSS with a custom **HSVA-to-Hex** color management system.
-- **Build Tool**: [Vite](https://vitejs.dev/)
+### 4. Professional Exporting
+- **PNG**: High-resolution, pixel-perfect raster export.
+- **SVG**: Fully scalable vector exports containing exact geometrical layouts.
 
 ---
 
 ## 💻 Local Setup
 
 1. Clone the repository.
+
+   `git clone https://github.com/MeetGhelani/Pixcii-studio.git`
+
 2. Install dependencies:
-   ```bash
+ 
    npm install
-   ```
+
 3. Start the development server:
-   ```bash
+
    npm run dev
-   ```
 
 ---
 
-## 🤝 Collaboration & Forking
+## 🛠️ Technical Stack
 
-We welcome contributions! Whether you're adding a new generator mode or improving the UI aesthetics, feel free to contribute.
-
-- **Forking**: Feel free to fork and build your own experimental versions.
-- **Pull Requests**: Submit PRs for bug fixes or feature enhancements.
-- **Issues**: Open an issue for bugs or feature requests.
+- **Core**: Vanilla JavaScript & HTML5 Canvas
+- **Processing**: `art-worker.js` (Web Workers)
+- **Styling**: Vanilla CSS (Nothing OS / Glassmorphism inspired aesthetics)
+- **Build Tool**: [Vite](https://vitejs.dev/)
 
 ---
 
