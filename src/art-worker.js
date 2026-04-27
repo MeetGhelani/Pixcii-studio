@@ -138,9 +138,13 @@ function handleLineArt(data, width, height, settings) {
 }
 
 function handleTypography(data, width, height, settings) {
-  const words = (settings.typoText || 'PIXCII').split(/\s+/);
+  const rawWords = (settings.typoText || 'PIXCII').split(/\s+/);
   const threshold = settings.threshold || 128;
   const spacing = settings.spacing || 1.0;
+  
+  // To avoid breaking the strict coordinate grid and causing horizontal stretching,
+  // we integrate the requested spacing directly into the word strings as trailing spaces.
+  const words = rawWords.map(w => spacing > 1.2 ? w + ' ' : w);
   
   let ascii = '';
   let wordIdx = 0;
@@ -156,8 +160,6 @@ function handleTypography(data, width, height, settings) {
         if (charInWordIdx >= currentWord.length) {
           charInWordIdx = 0;
           wordIdx++;
-          // Add spacing if requested
-          if (spacing > 1.2) ascii += ' '; 
         }
       } else {
         ascii += ' ';
@@ -169,7 +171,8 @@ function handleTypography(data, width, height, settings) {
 }
 
 function handleHalftone(data, width, height, settings) {
-  const { shape, spacing, rotation } = settings;
+  const { shape, rotation } = settings;
+  const spacing = Math.max(0.5, settings.spacing || 1.0); // Safety fallback
   const dots = [];
   const rad = (rotation * Math.PI) / 180;
   const cos = Math.cos(rad);

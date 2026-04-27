@@ -11,6 +11,7 @@ const originalImage = document.getElementById('original-image');
 const modeTabs = document.querySelectorAll('.mode-tab');
 const modeControls = document.querySelectorAll('.mode-controls');
 const tabBtns = document.querySelectorAll('.tab-btn');
+const artLoader = document.getElementById('art-loader');
 
 // Shared Sliders
 const densitySlider = document.getElementById('density-slider');
@@ -33,6 +34,30 @@ const halftoneRotationSlider = document.getElementById('halftone-rotation-slider
 const halftoneRotationValue = document.getElementById('halftone-rotation-value');
 const spacingSlider = document.getElementById('spacing-slider');
 const spacingValue = document.getElementById('spacing-value');
+
+// Composition & Layout
+const rotationSlider = document.getElementById('rotation-slider');
+const rotationValue = document.getElementById('rotation-value');
+const flipHToggle = document.getElementById('flip-h-toggle');
+const flipVToggle = document.getElementById('flip-v-toggle');
+const paddingSlider = document.getElementById('padding-slider');
+const paddingValue = document.getElementById('padding-value');
+
+// Advanced Typo
+const typoWeightSlider = document.getElementById('typo-weight-slider');
+const typoWeightValue = document.getElementById('typo-weight-value');
+const typoLetterSpacingSlider = document.getElementById('typo-letter-spacing-slider');
+const typoLetterSpacingValue = document.getElementById('typo-letter-spacing-value');
+
+// Post Processing
+const blurSlider = document.getElementById('blur-slider');
+const blurValue = document.getElementById('blur-value');
+const sharpnessSlider = document.getElementById('sharpness-slider');
+const sharpnessValue = document.getElementById('sharpness-value');
+const grainSlider = document.getElementById('grain-slider');
+const grainValue = document.getElementById('grain-value');
+const hueRotateSlider = document.getElementById('hue-rotate-slider');
+const hueRotateValue = document.getElementById('hue-rotate-value');
 
 // Style & Global
 const solidColorGroup = document.getElementById('solid-color-group');
@@ -60,6 +85,7 @@ let platformMode = 'ascii';
 let isProcessing = false;
 let currentArtData = null;
 let worker = null;
+let baseCharAspectRatio = 0.6; // Will be measured dynamically
 
 // Persistence Keys
 const SETTINGS_KEY = 'pixcii-settings';
@@ -79,6 +105,17 @@ function saveSettings() {
     typoSpacing: typoSpacingSlider.value,
     halftoneRotation: halftoneRotationSlider.value,
     spacing: spacingSlider.value,
+    aspectRatio: document.querySelector('input[name="aspect-ratio"]:checked')?.value,
+    rotation: rotationSlider.value,
+    flipH: flipHToggle.checked,
+    flipV: flipVToggle.checked,
+    padding: paddingSlider.value,
+    typoWeight: typoWeightSlider.value,
+    typoLetterSpacing: typoLetterSpacingSlider.value,
+    blur: blurSlider.value,
+    sharpness: sharpnessSlider.value,
+    grain: grainSlider.value,
+    hueRotate: hueRotateSlider.value,
     colorMode: document.querySelector('input[name="color-mode"]:checked')?.value,
     gradientType: document.querySelector('input[name="gradient-type"]:checked')?.value,
     gradientAngle: gradientAngleSlider.value,
@@ -111,7 +148,24 @@ function loadSettings() {
     if (s.typoSpacing) typoSpacingSlider.value = s.typoSpacing;
     if (s.halftoneRotation) halftoneRotationSlider.value = s.halftoneRotation;
     if (s.spacing) spacingSlider.value = s.spacing;
+    
+    if (s.aspectRatio) {
+      const radio = document.querySelector(`input[name="aspect-ratio"][value="${s.aspectRatio}"]`);
+      if (radio) radio.checked = true;
+    }
+    if (s.rotation) rotationSlider.value = s.rotation;
+    if (s.flipH !== undefined) flipHToggle.checked = s.flipH;
+    if (s.flipV !== undefined) flipVToggle.checked = s.flipV;
+    if (s.padding) paddingSlider.value = s.padding;
+
     if (s.gradientAngle) gradientAngleSlider.value = s.gradientAngle;
+    
+    if (s.typoWeight) typoWeightSlider.value = s.typoWeight;
+    if (s.typoLetterSpacing) typoLetterSpacingSlider.value = s.typoLetterSpacing;
+    if (s.blur) blurSlider.value = s.blur;
+    if (s.sharpness) sharpnessSlider.value = s.sharpness;
+    if (s.grain) grainSlider.value = s.grain;
+    if (s.hueRotate) hueRotateSlider.value = s.hueRotate;
     
     if (s.artFgColor) artFgColor.value = s.artFgColor;
     if (s.artBgColor) artBgColor.value = s.artBgColor;
@@ -170,7 +224,25 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Initialize Worker
+// Initialize Worker & Font
+function measureFontAspectRatio() {
+  const span = document.createElement('span');
+  span.style.fontFamily = 'var(--font-mono)';
+  span.style.fontSize = '100px';
+  span.style.lineHeight = '1';
+  span.style.position = 'absolute';
+  span.style.visibility = 'hidden';
+  span.style.letterSpacing = '0px';
+  span.textContent = 'X';
+  document.body.appendChild(span);
+  const rect = span.getBoundingClientRect();
+  baseCharAspectRatio = rect.width / rect.height;
+  document.body.removeChild(span);
+  if (!baseCharAspectRatio || baseCharAspectRatio < 0.3 || baseCharAspectRatio > 1.0) {
+    baseCharAspectRatio = 0.6; // Safe fallback
+  }
+}
+
 function initWorker() {
   if (worker) worker.terminate();
   worker = new Worker(new URL('./art-worker.js', import.meta.url), { type: 'module' });
@@ -178,6 +250,12 @@ function initWorker() {
     currentArtData = e.data;
     renderArt();
     isProcessing = false;
+    artLoader.classList.add('hidden');
+  };
+  worker.onerror = (err) => {
+    console.error("Worker Error:", err);
+    isProcessing = false;
+    artLoader.classList.add('hidden');
   };
 }
 
@@ -244,13 +322,23 @@ document.querySelectorAll('input[name="color-mode"], input[name="gradient-type"]
   });
 });
 
+document.querySelectorAll('input[name="aspect-ratio"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    saveSettings();
+    if (currentImage) processImage();
+  });
+});
+
 const allInputs = [
   densitySlider, contrastSlider, gammaSlider, 
   asciiRamp, thresholdSlider, lineThicknessSlider, 
   typoTextInput, typoSpacingSlider,
   halftoneRotationSlider, spacingSlider,
   artFgColor, artBgColor, gradientColor1, gradientColor2, gradientAngleSlider,
-  invertToggle, edgeToggle
+  invertToggle, edgeToggle,
+  typoWeightSlider, typoLetterSpacingSlider,
+  blurSlider, sharpnessSlider, grainSlider, hueRotateSlider,
+  rotationSlider, flipHToggle, flipVToggle, paddingSlider
 ];
 
 allInputs.forEach(el => {
@@ -259,7 +347,10 @@ allInputs.forEach(el => {
       updateBadgeValues();
       saveSettings();
       if (currentImage) {
-        if (el === artFgColor || el === artBgColor || el === gradientColor1 || el === gradientColor2 || el === gradientAngleSlider) {
+        if (el === artFgColor || el === artBgColor || el === gradientColor1 || el === gradientColor2 || el === gradientAngleSlider ||
+            el === typoWeightSlider || el === typoLetterSpacingSlider || 
+            el === blurSlider || el === sharpnessSlider || el === grainSlider || el === hueRotateSlider ||
+            el === paddingSlider) {
           renderArt();
         } else {
           processImage();
@@ -436,26 +527,37 @@ confirmClearBtn.addEventListener('click', () => {
 });
 
 function loadImage(file, isRestore = false) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const dataUrl = e.target.result;
-    if (!isRestore) {
-      try { localStorage.setItem(IMAGE_KEY, dataUrl); } catch (e) { console.warn("Image too large for storage"); }
-    }
+  if (file instanceof File) {
+    const objectUrl = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      currentImage = img; originalImage.src = img.src;
-      dropZone.classList.add('hidden'); previewContainer.classList.remove('hidden'); processImage();
+      isProcessing = false; // Reset lock on new image
+      currentImage = img;
+      originalImage.src = objectUrl;
+      dropZone.classList.add('hidden');
+      previewContainer.classList.remove('hidden');
+      processImage();
+      
+      // Save to localStorage only if reasonably small (< 2MB roughly)
+      if (file.size < 2 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try { localStorage.setItem(IMAGE_KEY, e.target.result); } catch (e) { console.warn("Image too large for persistence"); }
+        };
+        reader.readAsDataURL(file);
+      }
     };
-    img.src = dataUrl;
-  };
-  if (file instanceof File) reader.readAsDataURL(file);
-  else if (typeof file === 'string') {
-    // Restore from Base64
+    img.src = objectUrl;
+  } else if (typeof file === 'string') {
+    // Restore from Base64 or URL
     const img = new Image();
     img.onload = () => {
-      currentImage = img; originalImage.src = img.src;
-      dropZone.classList.add('hidden'); previewContainer.classList.remove('hidden'); processImage();
+      isProcessing = false;
+      currentImage = img;
+      originalImage.src = file;
+      dropZone.classList.add('hidden');
+      previewContainer.classList.remove('hidden');
+      processImage();
     };
     img.src = file;
   }
@@ -464,17 +566,79 @@ function loadImage(file, isRestore = false) {
 function processImage() {
   if (!currentImage || isProcessing) return;
   isProcessing = true;
+
+  const aspectRatio = document.querySelector('input[name="aspect-ratio"]:checked')?.value || 'original';
+  const rotation = parseInt(rotationSlider.value) || 0;
+  const flipH = flipHToggle.checked;
+  const flipV = flipVToggle.checked;
+
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
+  
+  const imgW = currentImage.width;
+  const imgH = currentImage.height;
+  const imgAspect = imgW / imgH;
+
+  // Determine the target bounds aspect ratio
+  const targetAspect = aspectRatio === 'original' ? imgAspect : (() => {
+    const [rw, rh] = aspectRatio.split(':').map(Number);
+    return rw / rh;
+  })();
+
   const density = parseInt(densitySlider.value);
-  const aspect = currentImage.width / currentImage.height;
-  let width = density, height = Math.round(width / aspect);
-  if (platformMode === 'ascii' || platformMode === 'typography') {
-    const charAspectRatio = 0.55; height = Math.round(width / aspect * charAspectRatio);
+  
+  // Physical target dimensions (before rotation and character scaling)
+  const targetWidth = density;
+  const targetHeight = Math.round(targetWidth / targetAspect);
+
+  // Calculate draw size to 'contain' the image within target dimensions
+  let drawW = targetWidth;
+  let drawH = targetHeight;
+
+  if (imgAspect > targetAspect) {
+    drawH = targetWidth / imgAspect; // Image is wider, fit width
+  } else {
+    drawW = targetHeight * imgAspect; // Image is taller, fit height
   }
-  canvas.width = width; canvas.height = height;
-  ctx.drawImage(currentImage, 0, 0, width, height);
-  const imageData = ctx.getImageData(0, 0, width, height);
+
+  const isRotated90 = rotation === 90 || rotation === 270;
+  
+  // Calculate bounding box for the square-pixel canvas
+  const squareCanvasW = isRotated90 ? targetHeight : targetWidth;
+  const squareCanvasH = isRotated90 ? targetWidth : targetHeight;
+  
+  let finalCanvasW = squareCanvasW;
+  let finalCanvasH = squareCanvasH;
+  
+  // Character aspect ratio compensation (dynamic base + letter spacing in ems)
+  const letterSpacingEm = parseFloat(typoLetterSpacingSlider.value) || 0;
+  const charAspectRatio = baseCharAspectRatio + letterSpacingEm;
+
+  if (platformMode === 'ascii' || platformMode === 'typography') {
+    // Only squish the Y axis (rows) to compensate for character height
+    finalCanvasH = Math.round(squareCanvasH * charAspectRatio);
+  }
+
+  canvas.width = finalCanvasW;
+  canvas.height = finalCanvasH;
+
+  // Apply Transformations
+  if (platformMode === 'ascii' || platformMode === 'typography') {
+    ctx.scale(1, charAspectRatio); // Puts context into pure square-pixel coordinate space
+  }
+  
+  // Move to the center of the square-pixel bounds
+  ctx.translate(squareCanvasW / 2, squareCanvasH / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+  
+  // Draw the full image centered and scaled to fit (contain)
+  ctx.drawImage(currentImage, 0, 0, imgW, imgH, -drawW / 2, -drawH / 2, drawW, drawH);
+  
+  // Final image data for the worker
+  const finalW = canvas.width, finalH = canvas.height;
+  const imageData = ctx.getImageData(0, 0, finalW, finalH);
+
   const settings = {
     contrast: parseFloat(contrastSlider.value), brightness: 1.0, gamma: parseFloat(gammaSlider.value),
     invert: invertToggle.checked, mode: document.querySelector('input[name="style-mode"]:checked')?.value,
@@ -484,7 +648,12 @@ function processImage() {
     rotation: parseInt(halftoneRotationSlider.value), halftoneShape: document.querySelector('input[name="halftone-shape"]:checked')?.value
   };
   if (!worker) initWorker();
-  worker.postMessage({ imageData, width, height, settings, platformMode });
+  artLoader.classList.remove('hidden');
+  // Use Transferable Objects for performance and use the actual imageData dimensions
+  worker.postMessage(
+    { imageData, width: imageData.width, height: imageData.height, settings, platformMode },
+    [imageData.data.buffer]
+  );
 }
 
 function renderArt() {
@@ -509,11 +678,39 @@ function renderArt() {
       asciiOutput.style.webkitTextFillColor = 'initial';
       asciiOutput.style.color = fgColor;
     }
+
+    // Apply Advanced Typography
+    asciiOutput.style.fontWeight = typoWeightSlider.value;
+    asciiOutput.style.letterSpacing = `${typoLetterSpacingSlider.value}em`;
+
     fitTextToFrame(currentArtData.ascii);
   } else if (currentArtData.type === 'line') {
     renderCanvasArt(currentArtData);
   } else if (currentArtData.type === 'halftone') {
     renderHalftone(currentArtData);
+  }
+
+  applyPostProcessing();
+  
+  // Apply Padding
+  const viewport = asciiOutput.parentElement;
+  viewport.style.padding = `${paddingSlider.value}px`;
+}
+
+function applyPostProcessing() {
+  const filters = [
+    `blur(${blurSlider.value}px)`,
+    `contrast(${sharpnessSlider.value}%)`,
+    `hue-rotate(${hueRotateSlider.value}deg)`
+  ];
+  
+  const viewport = asciiOutput.parentElement;
+  viewport.style.filter = filters.join(' ');
+  
+  // Handle Grain
+  const grainOverlay = viewport.querySelector('.grain-overlay');
+  if (grainOverlay) {
+    grainOverlay.style.opacity = grainSlider.value / 100;
   }
 }
 
@@ -523,7 +720,14 @@ function fitTextToFrame(text) {
   const lines = text.split('\n'); if (lines[lines.length - 1] === '') lines.pop();
   if (lines.length === 0 || lines[0].length === 0) return;
   const numCols = lines[0].length, numRows = lines.length;
-  const fontSizeW = (containerWidth / numCols) / 0.6, fontSizeH = containerHeight / numRows;
+  
+  const letterSpacingEm = parseFloat(typoLetterSpacingSlider.value) || 0;
+  const effectiveCharRatio = baseCharAspectRatio + letterSpacingEm;
+  
+  // Account for dynamic font width in calculation
+  const fontSizeW = Math.max(1, (containerWidth / numCols) / effectiveCharRatio);
+  const fontSizeH = containerHeight / numRows;
+  
   const optimalFontSize = Math.min(fontSizeW, fontSizeH) * 0.98;
   asciiOutput.style.fontSize = `${optimalFontSize}px`; asciiOutput.style.lineHeight = `${optimalFontSize}px`;
 }
@@ -583,10 +787,20 @@ function renderHalftone({ dots, width, height }) {
 
 function updateBadgeValues() {
   densityValue.textContent = densitySlider.value; contrastValue.textContent = contrastSlider.value;
-  gammaValue.textContent = gammaSlider.value; thresholdValue.textContent = thresholdSlider.value;
+  gammaValue.textContent = gammaSlider.value;  thresholdValue.textContent = thresholdSlider.value;
   lineThicknessValue.textContent = lineThicknessSlider.value; typoSpacingValue.textContent = typoSpacingSlider.value;
   halftoneRotationValue.textContent = `${halftoneRotationSlider.value}°`; spacingValue.textContent = spacingSlider.value;
   gradientAngleValue.textContent = `${gradientAngleSlider.value}°`;
+
+  typoWeightValue.textContent = typoWeightSlider.value;
+  typoLetterSpacingValue.textContent = `${typoLetterSpacingSlider.value}em`;
+  blurValue.textContent = `${blurSlider.value}px`;
+  sharpnessValue.textContent = `${sharpnessSlider.value}%`;
+  grainValue.textContent = `${grainSlider.value}%`;
+  hueRotateValue.textContent = `${hueRotateSlider.value}°`;
+  
+  rotationValue.textContent = `${rotationSlider.value}°`;
+  paddingValue.textContent = `${paddingSlider.value}px`;
 }
 
 document.getElementById('export-png').addEventListener('click', () => {
@@ -689,6 +903,7 @@ themeToggle.addEventListener('click', () => {
 });
 
 // Initialization
+measureFontAspectRatio();
 updateBadgeValues(); 
 initWorker();
 loadSettings(); 

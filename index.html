@@ -38,7 +38,7 @@
                 <span>Download PNG</span>
               </button>
               <button id="export-svg" class="dropdown-item">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 <span>Download SVG</span>
               </button>
             </div>
@@ -81,6 +81,11 @@
               <div id="canvas-container" class="canvas-container hidden">
                 <canvas id="art-canvas"></canvas>
               </div>
+              <div id="art-loader" class="art-loader hidden">
+                <div class="spinner"></div>
+                <span>Processing Artwork...</span>
+              </div>
+              <div class="grain-overlay"></div>
               <img id="original-image" class="original-image hidden" />
             </div>
           </div>
@@ -95,8 +100,47 @@
           </div>
           
           <div class="sidebar-scroll">
-            <!-- Accordion 1: Pre-processing -->
-            <div class="accordion-item open">
+            <!-- Accordion 1: Layout -->
+            <div class="accordion-item">
+              <button class="accordion-trigger">
+                <span>Layout</span>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="accordion-content-wrapper">
+                <div class="accordion-content">
+                  <div class="control-group">
+                    <label>Aspect Ratio</label>
+                    <div class="style-selector">
+                      <label class="style-option"><input type="radio" name="aspect-ratio" value="original" checked><div class="style-card"><span>Original</span></div></label>
+                      <label class="style-option"><input type="radio" name="aspect-ratio" value="1:1"><div class="style-card"><span>1:1</span></div></label>
+                      <label class="style-option"><input type="radio" name="aspect-ratio" value="16:9"><div class="style-card"><span>16:9</span></div></label>
+                      <label class="style-option"><input type="radio" name="aspect-ratio" value="9:16"><div class="style-card"><span>9:16</span></div></label>
+                    </div>
+                  </div>
+                  <div class="control-group">
+                    <div class="control-header">
+                      <label>Rotation</label>
+                      <span id="rotation-value" class="badge">0°</span>
+                    </div>
+                    <input type="range" id="rotation-slider" min="0" max="270" step="90" value="0" />
+                  </div>
+                  <div class="style-selector mb-1">
+                    <label class="style-option"><input type="checkbox" id="flip-h-toggle"><div class="style-card"><span>Flip Horizontal</span></div></label>
+                    <label class="style-option"><input type="checkbox" id="flip-v-toggle"><div class="style-card"><span>Flip Vertical</span></div></label>
+                  </div>
+                  <div class="control-group">
+                    <div class="control-header">
+                      <label>Frame Padding</label>
+                      <span id="padding-value" class="badge">16px</span>
+                    </div>
+                    <input type="range" id="padding-slider" min="0" max="80" step="4" value="16" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Accordion 2: Pre-processing -->
+            <div class="accordion-item">
               <button class="accordion-trigger">
                 <span>Preprocessing</span>
                 <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -128,8 +172,8 @@
               </div>
             </div>
 
-            <!-- Accordion 2: Generator Core -->
-            <div class="accordion-item open">
+            <!-- Accordion 3: Generator Engine -->
+            <div class="accordion-item">
               <button class="accordion-trigger">
                 <span>Generator Engine</span>
                 <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -181,6 +225,20 @@
                       </div>
                       <input type="range" id="typo-spacing-slider" min="0.5" max="2.0" step="0.1" value="1.0" />
                     </div>
+                    <div class="control-group">
+                      <div class="control-header">
+                        <label>Font Weight</label>
+                        <span id="typo-weight-value" class="badge">400</span>
+                      </div>
+                      <input type="range" id="typo-weight-slider" min="100" max="900" step="100" value="400" />
+                    </div>
+                    <div class="control-group">
+                      <div class="control-header">
+                        <label>Letter Spacing</label>
+                        <span id="typo-letter-spacing-value" class="badge">0em</span>
+                      </div>
+                      <input type="range" id="typo-letter-spacing-slider" min="-0.2" max="1.0" step="0.05" value="0" />
+                    </div>
                   </div>
 
                   <!-- Halftone Mode -->
@@ -207,8 +265,8 @@
                 </div>
               </div>
             </div>
-
-            <!-- Accordion 3: Style & Color -->
+            
+            <!-- Accordion 4: Style & Color -->
             <div class="accordion-item">
               <button class="accordion-trigger">
                 <span>Style & Color</span>
@@ -265,6 +323,46 @@
                       <label class="switch"><input type="checkbox" id="edge-toggle" checked><span class="slider round"></span></label>
                       <span>Edge Guidance</span>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Accordion 5: Post-Processing -->
+            <div class="accordion-item">
+              <button class="accordion-trigger">
+                <span>Post-Processing</span>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="accordion-content-wrapper">
+                <div class="accordion-content">
+                  <div class="control-group">
+                    <div class="control-header">
+                      <label>Blur</label>
+                      <span id="blur-value" class="badge">0px</span>
+                    </div>
+                    <input type="range" id="blur-slider" min="0" max="10" step="0.5" value="0" />
+                  </div>
+                  <div class="control-group">
+                    <div class="control-header">
+                      <label>Sharpness</label>
+                      <span id="sharpness-value" class="badge">100%</span>
+                    </div>
+                    <input type="range" id="sharpness-slider" min="50" max="200" step="5" value="100" />
+                  </div>
+                  <div class="control-group">
+                    <div class="control-header">
+                      <label>Grain Intensity</label>
+                      <span id="grain-value" class="badge">0%</span>
+                    </div>
+                    <input type="range" id="grain-slider" min="0" max="100" step="1" value="0" />
+                  </div>
+                  <div class="control-group">
+                    <div class="control-header">
+                      <label>Hue Shift</label>
+                      <span id="hue-rotate-value" class="badge">0°</span>
+                    </div>
+                    <input type="range" id="hue-rotate-slider" min="0" max="360" step="1" value="0" />
                   </div>
                 </div>
               </div>
