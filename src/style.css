@@ -1139,3 +1139,19 @@ input:checked + .slider:before { transform: translateX(14px); }
   display: block;
   line-height: 1;
 }
+
+/* UI Polish Requested by User */
+
+/* Remove scrollbar from the controls panel */
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
+.sidebar-scroll {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Center all the main mode tabs */
+.mode-tabs {
+  justify-content: center;
+}

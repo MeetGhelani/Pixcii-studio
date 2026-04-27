@@ -23,6 +23,7 @@
           <button class="mode-tab" data-mode="line">Line Art</button>
           <button class="mode-tab" data-mode="typography">Typography</button>
           <button class="mode-tab" data-mode="halftone">Halftone</button>
+          <button class="mode-tab" data-mode="blueprint">Blueprint</button>
         </nav>
 
         <div class="header-actions">
@@ -64,12 +65,13 @@
           </div>
 
           <div id="preview-container" class="preview-container hidden">
-            <div class="preview-header">
-              <div class="tab-group">
+            <div class="preview-header" style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: 100%; gap: 1rem;">
+              <div class="tab-group" style="justify-self: start;">
                 <button class="tab-btn active" data-tab="art">Artwork</button>
                 <button class="tab-btn" data-tab="original">Original</button>
               </div>
-              <div class="preview-actions">
+              <div id="mode-hint" style="font-size: 0.8125rem; color: var(--accents-primary); background: rgba(37, 43, 67, 0.447); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); text-align: center; justify-self: center; white-space: nowrap;"></div>
+              <div class="preview-actions" style="justify-self: end;">
                 <button id="reset-btn" class="btn-ghost btn-sm" title="Reset Workspace">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                   <span>Clear</span>
@@ -262,10 +264,60 @@
                       <label class="style-option"><input type="radio" name="halftone-shape" value="square"><div class="style-card"><span>Square</span></div></label>
                     </div>
                   </div>
+                  <!-- Blueprint Mode -->
+                  <div id="blueprint-controls" class="mode-controls hidden">
+                    <div class="control-group">
+                      <label>Color Theme</label>
+                      <div class="style-selector">
+                        <label class="style-option"><input type="radio" name="blueprint-theme" value="classic" checked><div class="style-card"><span>Blueprint</span></div></label>
+                        <label class="style-option"><input type="radio" name="blueprint-theme" value="matrix"><div class="style-card"><span>Matrix</span></div></label>
+                        <label class="style-option"><input type="radio" name="blueprint-theme" value="sepia"><div class="style-card"><span>Sepia</span></div></label>
+                        <label class="style-option"><input type="radio" name="blueprint-theme" value="midnight"><div class="style-card"><span>Midnight</span></div></label>
+                      </div>
+                    </div>
+                    <div class="control-group">
+                      <div class="control-header">
+                        <label>Edge Threshold</label>
+                        <span id="blueprint-threshold-value" class="badge">40</span>
+                      </div>
+                      <input type="range" id="blueprint-threshold-slider" min="10" max="150" value="40" />
+                    </div>
+                    <div class="control-group">
+                      <div class="control-header">
+                        <label>Edge Thickness</label>
+                        <span id="blueprint-thickness-value" class="badge">0</span>
+                      </div>
+                      <input type="range" id="blueprint-thickness-slider" min="0" max="5" step="0.5" value="0" />
+                    </div>
+                    <div class="control-group">
+                      <div class="control-header">
+                        <label>Grid Size</label>
+                        <span id="blueprint-grid-value" class="badge">40px</span>
+                      </div>
+                      <input type="range" id="blueprint-grid-slider" min="15" max="100" step="5" value="40" />
+                    </div>
+                    <div class="control-group">
+                      <div class="control-header">
+                        <label>Grid Opacity</label>
+                        <span id="blueprint-opacity-value" class="badge">25%</span>
+                      </div>
+                      <input type="range" id="blueprint-opacity-slider" min="5" max="60" step="1" value="25" />
+                    </div>
+                    <div class="control-group">
+                      <label>Annotation Density</label>
+                      <div class="style-selector" style="flex-wrap: wrap;">
+                        <label class="style-option"><input type="radio" name="blueprint-annotations" value="none"><div class="style-card"><span>None</span></div></label>
+                        <label class="style-option"><input type="radio" name="blueprint-annotations" value="minimal" checked><div class="style-card"><span>Minimal</span></div></label>
+                        <label class="style-option"><input type="radio" name="blueprint-annotations" value="moderate"><div class="style-card"><span>Moderate</span></div></label>
+                        <label class="style-option"><input type="radio" name="blueprint-annotations" value="dense"><div class="style-card"><span>Dense</span></div></label>
+                        <label class="style-option"><input type="radio" name="blueprint-annotations" value="extreme"><div class="style-card"><span>Extreme</span></div></label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            
+
             <!-- Accordion 4: Style & Color -->
             <div class="accordion-item">
               <button class="accordion-trigger">

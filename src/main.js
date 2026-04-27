@@ -12,6 +12,15 @@ const modeTabs = document.querySelectorAll('.mode-tab');
 const modeControls = document.querySelectorAll('.mode-controls');
 const tabBtns = document.querySelectorAll('.tab-btn');
 const artLoader = document.getElementById('art-loader');
+const modeHint = document.getElementById('mode-hint');
+
+const MODE_HINTS = {
+  ascii: "💡 <strong>Best for: </strong> Images with high contrast, strong lighting, and simple backgrounds.",
+  line: "💡 <strong>Best for: </strong> Architecture, logos, silhouettes, and images with clear sharp edges.",
+  typography: "💡 <strong>Best for: </strong> Close-up portraits or detailed faces with dramatic shadow and light.",
+  halftone: "💡 <strong>Best for: </strong> Smooth gradients, vintage photos, and varied mid-tones.",
+  blueprint: "💡 <strong>Best for: </strong> Mechanical objects, vehicles, buildings, or stark geometric shapes."
+};
 
 // Shared Sliders
 const densitySlider = document.getElementById('density-slider');
@@ -48,6 +57,16 @@ const typoWeightSlider = document.getElementById('typo-weight-slider');
 const typoWeightValue = document.getElementById('typo-weight-value');
 const typoLetterSpacingSlider = document.getElementById('typo-letter-spacing-slider');
 const typoLetterSpacingValue = document.getElementById('typo-letter-spacing-value');
+
+// Blueprint
+const blueprintThresholdSlider = document.getElementById('blueprint-threshold-slider');
+const blueprintThresholdValue = document.getElementById('blueprint-threshold-value');
+const blueprintThicknessSlider = document.getElementById('blueprint-thickness-slider');
+const blueprintThicknessValue = document.getElementById('blueprint-thickness-value');
+const blueprintGridSlider = document.getElementById('blueprint-grid-slider');
+const blueprintGridValue = document.getElementById('blueprint-grid-value');
+const blueprintOpacitySlider = document.getElementById('blueprint-opacity-slider');
+const blueprintOpacityValue = document.getElementById('blueprint-opacity-value');
 
 // Post Processing
 const blurSlider = document.getElementById('blur-slider');
@@ -126,7 +145,13 @@ function saveSettings() {
     invert: invertToggle.checked,
     edge: edgeToggle.checked,
     theme: document.documentElement.getAttribute('data-theme') || 'dark',
-    halftoneShape: document.querySelector('input[name="halftone-shape"]:checked')?.value
+    halftoneShape: document.querySelector('input[name="halftone-shape"]:checked')?.value,
+    blueprintThreshold: blueprintThresholdSlider?.value,
+    blueprintThickness: blueprintThicknessSlider?.value,
+    blueprintGrid: blueprintGridSlider?.value,
+    blueprintOpacity: blueprintOpacitySlider?.value,
+    blueprintTheme: document.querySelector('input[name="blueprint-theme"]:checked')?.value,
+    blueprintAnnotations: document.querySelector('input[name="blueprint-annotations"]:checked')?.value
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
@@ -137,6 +162,7 @@ function loadSettings() {
   try {
     const s = JSON.parse(saved);
     platformMode = s.platformMode || 'ascii';
+    if (modeHint) modeHint.innerHTML = MODE_HINTS[platformMode];
     
     if (s.density) densitySlider.value = s.density;
     if (s.contrast) contrastSlider.value = s.contrast;
@@ -162,6 +188,10 @@ function loadSettings() {
     
     if (s.typoWeight) typoWeightSlider.value = s.typoWeight;
     if (s.typoLetterSpacing) typoLetterSpacingSlider.value = s.typoLetterSpacing;
+    if (s.blueprintThreshold && blueprintThresholdSlider) blueprintThresholdSlider.value = s.blueprintThreshold;
+    if (s.blueprintThickness && blueprintThicknessSlider) blueprintThicknessSlider.value = s.blueprintThickness;
+    if (s.blueprintGrid && blueprintGridSlider) blueprintGridSlider.value = s.blueprintGrid;
+    if (s.blueprintOpacity && blueprintOpacitySlider) blueprintOpacitySlider.value = s.blueprintOpacity;
     if (s.blur) blurSlider.value = s.blur;
     if (s.sharpness) sharpnessSlider.value = s.sharpness;
     if (s.grain) grainSlider.value = s.grain;
@@ -185,6 +215,14 @@ function loadSettings() {
     }
     if (s.halftoneShape) {
       const radio = document.querySelector(`input[name="halftone-shape"][value="${s.halftoneShape}"]`);
+      if (radio) radio.checked = true;
+    }
+    if (s.blueprintTheme) {
+      const radio = document.querySelector(`input[name="blueprint-theme"][value="${s.blueprintTheme}"]`);
+      if (radio) radio.checked = true;
+    }
+    if (s.blueprintAnnotations) {
+      const radio = document.querySelector(`input[name="blueprint-annotations"][value="${s.blueprintAnnotations}"]`);
       if (radio) radio.checked = true;
     }
 
@@ -271,6 +309,7 @@ modeTabs.forEach(tab => {
     const isTextMode = platformMode === 'ascii' || platformMode === 'typography';
     asciiOutput.classList.toggle('hidden', !isTextMode);
     canvasContainer.classList.toggle('hidden', isTextMode);
+    if (modeHint) modeHint.innerHTML = MODE_HINTS[platformMode];
     saveSettings();
     if (currentImage) processImage();
   });
@@ -322,6 +361,14 @@ document.querySelectorAll('input[name="color-mode"], input[name="gradient-type"]
   });
 });
 
+// Blueprint theme/annotation — re-render only, no reprocessing needed
+document.querySelectorAll('input[name="blueprint-theme"], input[name="blueprint-annotations"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    saveSettings();
+    if (currentArtData) renderArt();
+  });
+});
+
 document.querySelectorAll('input[name="aspect-ratio"]').forEach(radio => {
   radio.addEventListener('change', () => {
     saveSettings();
@@ -337,6 +384,7 @@ const allInputs = [
   artFgColor, artBgColor, gradientColor1, gradientColor2, gradientAngleSlider,
   invertToggle, edgeToggle,
   typoWeightSlider, typoLetterSpacingSlider,
+  blueprintThresholdSlider, blueprintThicknessSlider, blueprintGridSlider, blueprintOpacitySlider,
   blurSlider, sharpnessSlider, grainSlider, hueRotateSlider,
   rotationSlider, flipHToggle, flipVToggle, paddingSlider
 ];
@@ -349,6 +397,7 @@ allInputs.forEach(el => {
       if (currentImage) {
         if (el === artFgColor || el === artBgColor || el === gradientColor1 || el === gradientColor2 || el === gradientAngleSlider ||
             el === typoWeightSlider || el === typoLetterSpacingSlider || 
+            el === blueprintGridSlider || el === blueprintOpacitySlider ||
             el === blurSlider || el === sharpnessSlider || el === grainSlider || el === hueRotateSlider ||
             el === paddingSlider) {
           renderArt();
@@ -644,6 +693,8 @@ function processImage() {
     invert: invertToggle.checked, mode: document.querySelector('input[name="style-mode"]:checked')?.value,
     customRamp: asciiRamp.value, edgeEnhancement: edgeToggle.checked, threshold: parseInt(thresholdSlider.value),
     thickness: parseFloat(lineThicknessSlider.value), typoText: typoTextInput.value,
+    blueprintThreshold: parseInt(blueprintThresholdSlider?.value || 40),
+    blueprintThickness: parseFloat(blueprintThicknessSlider?.value || 0),
     spacing: parseFloat(platformMode === 'halftone' ? spacingSlider.value : typoSpacingSlider.value),
     rotation: parseInt(halftoneRotationSlider.value), halftoneShape: document.querySelector('input[name="halftone-shape"]:checked')?.value
   };
@@ -688,6 +739,8 @@ function renderArt() {
     renderCanvasArt(currentArtData);
   } else if (currentArtData.type === 'halftone') {
     renderHalftone(currentArtData);
+  } else if (currentArtData.type === 'blueprint') {
+    renderBlueprint(currentArtData);
   }
 
   applyPostProcessing();
@@ -785,6 +838,138 @@ function renderHalftone({ dots, width, height }) {
   });
 }
 
+function renderBlueprint({ imageData, width, height }) {
+  const THEMES = {
+    classic:  { bg: '#003F6B', grid: '#5DADE2', line: '#A8DAFF', label: '#A8DAFF' },
+    matrix:   { bg: '#001A00', grid: '#00FF41', line: '#AFFFB0', label: '#00FF41' },
+    sepia:    { bg: '#2C1A00', grid: '#C8860A', line: '#F5D98B', label: '#F5D98B' },
+    midnight: { bg: '#0A0A1A', grid: '#6C63FF', line: '#C5C2FF', label: '#C5C2FF' },
+  };
+  const theme = document.querySelector('input[name="blueprint-theme"]:checked')?.value || 'classic';
+  const colors = THEMES[theme];
+  const gridSize = parseInt(blueprintGridSlider?.value || 40);
+  const gridOpacity = (parseInt(blueprintOpacitySlider?.value || 25)) / 100;
+  const annotations = document.querySelector('input[name="blueprint-annotations"]:checked')?.value || 'minimal';
+
+  // Scale canvas up for sharp rendering (same as halftone)
+  const SCALE = 2;
+  artCanvas.width = width * SCALE;
+  artCanvas.height = height * SCALE;
+  const ctx = artCanvas.getContext('2d');
+
+  // Layer 1: Background
+  ctx.fillStyle = colors.bg;
+  ctx.fillRect(0, 0, artCanvas.width, artCanvas.height);
+
+  // Layer 2: Grid
+  ctx.save();
+  ctx.strokeStyle = colors.grid;
+  ctx.globalAlpha = gridOpacity;
+  ctx.lineWidth = 0.5;
+  const gs = gridSize * SCALE;
+  for (let x = 0; x < artCanvas.width; x += gs) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, artCanvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < artCanvas.height; y += gs) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(artCanvas.width, y); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Layer 3: Edge lines from worker (white mask → theme line color)
+  const edgeCanvas = document.createElement('canvas');
+  edgeCanvas.width = width; edgeCanvas.height = height;
+  const ectx = edgeCanvas.getContext('2d');
+  const imgDataObj = new ImageData(new Uint8ClampedArray(imageData), width, height);
+  ectx.putImageData(imgDataObj, 0, 0);
+  // Colorise edges
+  ectx.globalCompositeOperation = 'source-in';
+  ectx.fillStyle = colors.line;
+  ectx.fillRect(0, 0, width, height);
+  ctx.drawImage(edgeCanvas, 0, 0, artCanvas.width, artCanvas.height);
+
+  // Layer 4: Annotations
+  if (annotations !== 'none') {
+    ctx.font = `${10 * SCALE * 0.7}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = colors.label;
+    ctx.globalAlpha = 0.75;
+
+    // Corner brackets
+    const bl = 14 * SCALE;
+    [[0,0,1,1],[artCanvas.width,0,-1,1],[0,artCanvas.height,1,-1],[artCanvas.width,artCanvas.height,-1,-1]].forEach(([cx,cy,sx,sy]) => {
+      ctx.strokeStyle = colors.label; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx + sx * bl, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * bl); ctx.stroke();
+    });
+
+    // Dimension labels on edges
+    ctx.globalAlpha = 0.65;
+    ctx.fillText(`W: ${width}px`, 8 * SCALE, artCanvas.height - 5 * SCALE);
+    ctx.fillText(`H: ${height}px`, artCanvas.width - 65 * SCALE, artCanvas.height - 5 * SCALE);
+
+    if (annotations === 'moderate' || annotations === 'dense' || annotations === 'extreme') {
+      // Grid coordinate labels
+      ctx.globalAlpha = 0.45;
+      const stepMult = annotations === 'moderate' ? 4 : (annotations === 'dense' ? 2 : 1);
+      const labelStep = Math.ceil(gridSize * stepMult);
+      for (let x = labelStep; x < width - 20; x += labelStep) {
+        ctx.fillText(x, x * SCALE + 2, 10 * SCALE);
+      }
+      for (let y = labelStep; y < height - 10; y += labelStep) {
+        ctx.fillText(y, 2, y * SCALE + 10 * SCALE);
+      }
+      
+      // Center crosshairs
+      ctx.beginPath();
+      ctx.moveTo(artCanvas.width / 2 - 15 * SCALE, artCanvas.height / 2);
+      ctx.lineTo(artCanvas.width / 2 + 15 * SCALE, artCanvas.height / 2);
+      ctx.moveTo(artCanvas.width / 2, artCanvas.height / 2 - 15 * SCALE);
+      ctx.lineTo(artCanvas.width / 2, artCanvas.height / 2 + 15 * SCALE);
+      ctx.stroke();
+    }
+
+    if (annotations === 'dense' || annotations === 'extreme') {
+      // Technical labels at intersections
+      const techLabels = ['REF A', 'REF B', 'Ø12.5', 'R8.0', 'CL', '±0.5'];
+      let li = 0;
+      const yStep = annotations === 'extreme' ? 2 : 4;
+      const xStep = annotations === 'extreme' ? 2 : 3;
+      for (let x = gs * 2; x < artCanvas.width - gs; x += gs * xStep) {
+        for (let y = gs * 2; y < artCanvas.height - gs; y += gs * yStep) {
+          ctx.globalAlpha = 0.3;
+          ctx.fillText(techLabels[li % techLabels.length], x, y);
+          li++;
+        }
+      }
+    }
+    
+    if (annotations === 'extreme') {
+      // Random measurement lines crossing the screen
+      ctx.globalAlpha = 0.2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(gs * 3, gs * 2);
+      ctx.lineTo(artCanvas.width - gs * 3, gs * 2);
+      ctx.moveTo(gs * 2, gs * 3);
+      ctx.lineTo(gs * 2, artCanvas.height - gs * 3);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      ctx.globalAlpha = 0.4;
+      ctx.fillText('<-- CLR -->', gs * 4, gs * 2 - 5 * SCALE);
+      
+      // Technical nodes at sparse grid intersections
+      for(let x=gs*2.5; x < artCanvas.width; x+=gs*5) {
+        for(let y=gs*2.5; y < artCanvas.height; y+=gs*5) {
+            ctx.beginPath();
+            ctx.arc(x, y, 3 * SCALE, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+      }
+    }
+  }
+
+  ctx.globalAlpha = 1;
+}
+
 function updateBadgeValues() {
   densityValue.textContent = densitySlider.value; contrastValue.textContent = contrastSlider.value;
   gammaValue.textContent = gammaSlider.value;  thresholdValue.textContent = thresholdSlider.value;
@@ -794,6 +979,10 @@ function updateBadgeValues() {
 
   typoWeightValue.textContent = typoWeightSlider.value;
   typoLetterSpacingValue.textContent = `${typoLetterSpacingSlider.value}em`;
+  if (blueprintThresholdValue && blueprintThresholdSlider) blueprintThresholdValue.textContent = blueprintThresholdSlider.value;
+  if (blueprintThicknessValue && blueprintThicknessSlider) blueprintThicknessValue.textContent = blueprintThicknessSlider.value;
+  if (blueprintGridValue && blueprintGridSlider) blueprintGridValue.textContent = `${blueprintGridSlider.value}px`;
+  if (blueprintOpacityValue && blueprintOpacitySlider) blueprintOpacityValue.textContent = `${blueprintOpacitySlider.value}%`;
   blurValue.textContent = `${blurSlider.value}px`;
   sharpnessValue.textContent = `${sharpnessSlider.value}%`;
   grainValue.textContent = `${grainSlider.value}%`;
@@ -899,7 +1088,10 @@ themeToggle.addEventListener('click', () => {
   document.documentElement.setAttribute('data-theme', newTheme);
   updateThemeIcon(newTheme);
   saveSettings();
-  if (currentImage) processImage();
+  if (currentImage) {
+    if (modeHint) modeHint.innerHTML = MODE_HINTS[platformMode];
+    processImage();
+  }
 });
 
 // Initialization

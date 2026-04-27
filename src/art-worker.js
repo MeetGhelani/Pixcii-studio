@@ -40,6 +40,8 @@ self.onmessage = function(e) {
     handleTypography(processedData, width, height, settings);
   } else if (platformMode === 'halftone') {
     handleHalftone(processedData, width, height, settings);
+  } else if (platformMode === 'blueprint') {
+    handleBlueprint(processedData, width, height, settings);
   }
 };
 
@@ -197,4 +199,42 @@ function handleHalftone(data, width, height, settings) {
     }
   }
   self.postMessage({ type: 'halftone', dots, width, height });
+}
+
+function handleBlueprint(data, width, height, settings) {
+  // Use edge detection parameters from the UI controls, with safe fallbacks
+  const threshold = settings.blueprintThreshold !== undefined ? settings.blueprintThreshold : 40;
+  const thickness = settings.blueprintThickness !== undefined ? settings.blueprintThickness : 0;
+
+
+  const result = new Uint8ClampedArray(width * height * 4);
+  const gx = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
+  const gy = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      let valX = 0, valY = 0;
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          valX += data[((y + ky) * width + (x + kx)) * 4] * gx[ky + 1][kx + 1];
+          valY += data[((y + ky) * width + (x + kx)) * 4] * gy[ky + 1][kx + 1];
+        }
+      }
+      const mag = Math.sqrt(valX * valX + valY * valY);
+      if (mag > threshold) {
+        const t = Math.floor(thickness);
+        for (let ty = -t; ty <= t; ty++) {
+          for (let tx = -t; tx <= t; tx++) {
+            const ry = y + ty, rx = x + tx;
+            if (ry >= 0 && ry < height && rx >= 0 && rx < width) {
+              const ridx = (ry * width + rx) * 4;
+              result[ridx] = result[ridx + 1] = result[ridx + 2] = 255;
+              result[ridx + 3] = 255;
+            }
+          }
+        }
+      }
+    }
+  }
+  self.postMessage({ type: 'blueprint', imageData: result, width, height });
 }
