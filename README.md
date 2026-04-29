@@ -1,6 +1,6 @@
 # ◈ Pixcii Studio
 
-**Pixcii Studio** is a premium, high-fidelity generative art platform that runs entirely in your browser. It transforms your photos into stunning ASCII art, Technical Blueprints, Typographic Word Clouds, and Halftone patterns. Built for designers, developers, and digital artists, it focuses on crisp vector/raster outputs, modern aesthetics, and professional-grade performance using Web Workers.
+**Pixcii Studio** is a premium, high-fidelity generative art suite that runs entirely in your browser. Built with a **Glassmorphism 2.0** aesthetic, it transforms photos into stunning ASCII art, Technical Blueprints, Typographic Word Clouds, and Halftone patterns with professional-grade precision and real-time performance.
 
 ---
 
@@ -44,7 +44,9 @@ A completely custom, high-resolution packing engine that paints your image using
 ### 3. Persistence & Performance
 - **Multi-threaded Generation**: All intensive math and edge-detection operations are offloaded to an isolated Web Worker (`art-worker.js`), ensuring the UI stays buttery smooth.
 - **Session Recovery**: Every single slider adjustment, theme preference, and uploaded image is saved automatically to `localStorage`. Refresh your tab anytime without losing your work.
-- **Dynamic Pro Tips**: Helpful UI hints adapt instantly to guide you on which type of images work best for the currently active generator.
+- **Iconic Navigation**: Professional, minimalist vector icons for each generator mode, providing a Figma-grade creative workspace.
+- **Live Engine Analytics**: A unique "Marching Pixels" status bar in the footer with a live "System: Optimized" indicator.
+- **Double-Click Resets**: Fast, professional workflow allowing instant slider resets to default values.
 
 ### 4. Professional Exporting
 - **PNG**: High-resolution, pixel-perfect raster export.
@@ -72,9 +74,10 @@ A completely custom, high-resolution packing engine that paints your image using
 
 - **Core**: Vanilla JavaScript & HTML5 Canvas
 - **Processing**: `art-worker.js` (Web Workers)
-- **Styling**: Vanilla CSS (Nothing OS / Glassmorphism inspired aesthetics)
+- **Styling**: Glassmorphism 2.0 (Frosted glass with physical noise textures and light-catch borders)
+- **Typography**: Editorial pairing of **Outfit** (UI) and **JetBrains Mono** (Technical Data)
 - **Build Tool**: [Vite](https://vitejs.dev/)
 
 ---
 
-Built for the modern web • Designed for clarity • Built for speed.
+Precision Rendering &bull; Creative Freedom.

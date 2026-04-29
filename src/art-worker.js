@@ -7,25 +7,21 @@ self.onmessage = function(e) {
   const data = imageData.data;
   const processedData = new Uint8ClampedArray(data.length);
 
-  // 1. Shared Pre-processing
-  const adjust = (val) => {
-    // Contrast & Brightness
-    let v = (val / 255 - 0.5) * contrast + 0.5;
-    v *= brightness;
-    // Gamma
-    v = Math.pow(Math.max(0, v), 1 / gamma);
-    return Math.max(0, Math.min(1, v)) * 255;
-  };
-
+  // Contrast & Brightness are now handled by the canvas filter in main.js
   const getLuminance = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
-
+  
   for (let i = 0; i < data.length; i += 4) {
-    let r = adjust(data[i]);
-    let g = adjust(data[i + 1]);
-    let b = adjust(data[i + 2]);
+    let r = data[i];
+    let g = data[i + 1];
+    let b = data[i + 2];
     let lum = getLuminance(r, g, b);
     
     if (invert) lum = 255 - lum;
+
+    // Apply Gamma (Mid-tone detail)
+    if (gamma !== 1.0) {
+      lum = Math.pow(lum / 255, 1 / gamma) * 255;
+    }
 
     processedData[i] = processedData[i+1] = processedData[i+2] = lum;
     processedData[i+3] = data[i+3];
@@ -47,17 +43,18 @@ self.onmessage = function(e) {
 
 function handleAscii(data, width, height, settings) {
   const { mode, edgeEnhancement, customRamp } = settings;
-  const charsets = {
-    detailed: '@%#*+=-:. '.split(''),
-    smooth: '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,"^`\'. '.split(''),
-    block: '█▓▒░ '.split(''),
-    terminal: '#+-:. '.split('')
-  };
   
-  let charset = charsets[mode] || charsets.detailed;
-  if (customRamp && customRamp.trim().length > 0) {
-    charset = customRamp.split('');
+  let characters = '@%#*+=-:. ';
+  if (customRamp && customRamp.trim() !== '') {
+    characters = customRamp;
+  } else {
+    if (mode === 'detailed') characters = '@%#*+=-:. ';
+    else if (mode === 'smooth') characters = '█▓▒░ ';
+    else if (mode === 'block') characters = '■□▪▫ ';
+    else if (mode === 'terminal') characters = '01 ';
   }
+  
+  const charset = characters.split('');
   const numChars = charset.length;
 
   let ascii = '';
@@ -68,30 +65,35 @@ function handleAscii(data, width, height, settings) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
       const luminance = data[idx];
+      const alpha = data[idx + 3];
       
       let char = ' ';
-      if (edgeEnhancement && x > 0 && x < width - 1 && y > 0 && y < height - 1) {
-        let valX = 0, valY = 0;
-        for (let ky = -1; ky <= 1; ky++) {
-          for (let kx = -1; kx <= 1; kx++) {
-            valX += data[((y + ky) * width + (x + kx)) * 4] * gx[ky + 1][kx + 1];
-            valY += data[((y + ky) * width + (x + kx)) * 4] * gy[ky + 1][kx + 1];
+      if (alpha > 10) { 
+        if (edgeEnhancement && x > 0 && x < width - 1 && y > 0 && y < height - 1) {
+          let valX = 0, valY = 0;
+          for (let ky = -1; ky <= 1; ky++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              valX += data[((y + ky) * width + (x + kx)) * 4] * gx[ky + 1][kx + 1];
+              valY += data[((y + ky) * width + (x + kx)) * 4] * gy[ky + 1][kx + 1];
+            }
           }
-        }
-        const mag = Math.sqrt(valX * valX + valY * valY);
-        if (mag > 50) {
-          const angle = Math.atan2(valY, valX) * (180 / Math.PI);
-          if (Math.abs(angle) < 22.5 || Math.abs(angle) > 157.5) char = '|';
-          else if (angle > 22.5 && angle <= 67.5) char = '/';
-          else if (Math.abs(angle) > 67.5 && Math.abs(angle) <= 112.5) char = '-';
-          else char = '\\';
+          const mag = Math.sqrt(valX * valX + valY * valY);
+          if (mag > 50) {
+            const angle = Math.atan2(valY, valX) * (180 / Math.PI);
+            if (Math.abs(angle) < 22.5 || Math.abs(angle) > 157.5) char = '|';
+            else if (angle > 22.5 && angle <= 67.5) char = '/';
+            else if (Math.abs(angle) > 67.5 && Math.abs(angle) <= 112.5) char = '-';
+            else char = '\\';
+          } else {
+            const charIdx = Math.floor((luminance / 255) * (numChars - 1));
+            char = charset[numChars - 1 - charIdx];
+          }
         } else {
           const charIdx = Math.floor((luminance / 255) * (numChars - 1));
           char = charset[numChars - 1 - charIdx];
         }
       } else {
-        const charIdx = Math.floor((luminance / 255) * (numChars - 1));
-        char = charset[numChars - 1 - charIdx];
+        char = ' ';
       }
       ascii += char;
     }
@@ -109,6 +111,9 @@ function handleLineArt(data, width, height, settings) {
 
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
+      const idx = (y * width + x) * 4;
+      if (data[idx + 3] < 10) continue; // Skip transparent pixel
+      
       let valX = 0, valY = 0;
       for (let ky = -1; ky <= 1; ky++) {
         for (let kx = -1; kx <= 1; kx++) {
@@ -154,8 +159,11 @@ function handleTypography(data, width, height, settings) {
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const lum = data[(y * width + x) * 4];
-      if (lum < threshold) {
+      const idx = (y * width + x) * 4;
+      const lum = data[idx];
+      const alpha = data[idx + 3];
+      
+      if (alpha > 10 && lum < threshold) {
         const currentWord = words[wordIdx % words.length];
         ascii += currentWord[charInWordIdx % currentWord.length];
         charInWordIdx++;
@@ -190,7 +198,11 @@ function handleHalftone(data, width, height, settings) {
       const srcY = Math.floor(y);
       
       if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
-        const lum = data[(srcY * width + srcX) * 4];
+        const idx = (srcY * width + srcX) * 4;
+        const alpha = data[idx + 3];
+        if (alpha < 10) continue; // Skip transparent
+        
+        const lum = data[idx];
         const r = (1 - lum / 255) * 0.5 * spacing;
         if (r > 0.05) {
           dots.push({ x: srcX, y: srcY, r, shape });
@@ -213,6 +225,9 @@ function handleBlueprint(data, width, height, settings) {
 
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
+      const idx = (y * width + x) * 4;
+      if (data[idx + 3] < 10) continue; // Skip transparent
+      
       let valX = 0, valY = 0;
       for (let ky = -1; ky <= 1; ky++) {
         for (let kx = -1; kx <= 1; kx++) {

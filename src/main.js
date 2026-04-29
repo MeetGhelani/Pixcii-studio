@@ -24,10 +24,8 @@ const MODE_HINTS = {
 
 // Shared Sliders
 const densitySlider = document.getElementById('density-slider');
-const contrastSlider = document.getElementById('contrast-slider');
 const gammaSlider = document.getElementById('gamma-slider');
 const densityValue = document.getElementById('density-value');
-const contrastValue = document.getElementById('contrast-value');
 const gammaValue = document.getElementById('gamma-value');
 
 // Mode Specific
@@ -77,6 +75,10 @@ const grainSlider = document.getElementById('grain-slider');
 const grainValue = document.getElementById('grain-value');
 const hueRotateSlider = document.getElementById('hue-rotate-slider');
 const hueRotateValue = document.getElementById('hue-rotate-value');
+const postBrightnessSlider = document.getElementById('post-brightness-slider');
+const postBrightnessValue = document.getElementById('post-brightness-value');
+const postContrastSlider = document.getElementById('post-contrast-slider');
+const postContrastValue = document.getElementById('post-contrast-value');
 
 // Style & Global
 const solidColorGroup = document.getElementById('solid-color-group');
@@ -91,6 +93,7 @@ const gradientAngleValue = document.getElementById('gradient-angle-value');
 const invertToggle = document.getElementById('invert-toggle');
 const edgeToggle = document.getElementById('edge-toggle');
 const themeToggle = document.getElementById('theme-toggle');
+const transparentBgToggle = document.getElementById('transparent-bg-toggle');
 const resetBtn = document.getElementById('reset-btn');
 
 // Confirmation Modal Elements
@@ -102,37 +105,108 @@ const cancelClearBtn = document.getElementById('cancel-clear');
 let currentImage = null;
 let platformMode = 'ascii';
 let isProcessing = false;
+let needsReProcessing = false;
 let currentArtData = null;
 let worker = null;
 let baseCharAspectRatio = 0.6; // Will be measured dynamically
+
+const MODE_DEFAULTS = {
+  ascii: { density: 100, brightness: 1.0, contrast: 1.2, gamma: 1.0, ramp: '@%#*+=-:. ', style: 'detailed' },
+  line: { density: 200, brightness: 1.1, contrast: 1.5, gamma: 1.0, threshold: 50, thickness: 1.0 },
+  typography: { density: 80, brightness: 1.0, contrast: 1.3, gamma: 1.0, text: 'PIXCII STUDIO ART', spacing: 1.0, weight: 400, letterSpacing: 0 },
+  halftone: { density: 120, brightness: 1.0, contrast: 1.1, gamma: 1.1, spacing: 1.0, rotation: 0, shape: 'circle' },
+  blueprint: { density: 150, brightness: 1.2, contrast: 1.4, gamma: 1.0, threshold: 40, thickness: 0, grid: 40, opacity: 25, theme: 'classic', annotations: 'minimal' }
+};
+
+let settingsByMode = JSON.parse(JSON.stringify(MODE_DEFAULTS));
 
 // Persistence Keys
 const SETTINGS_KEY = 'pixcii-settings';
 const IMAGE_KEY = 'pixcii-image';
 
-// --- Persistence Logic ---
+// --- Persistence & Mode Logic ---
+function syncSettingsFromUI() {
+  const m = settingsByMode[platformMode];
+  if (!m) return;
+  m.density = parseInt(densitySlider.value);
+  m.brightness = 1.0; // Stabilized neutral
+  m.contrast = 1.2;   // Stabilized neutral
+  m.gamma = parseFloat(gammaSlider.value);
+  
+  if (platformMode === 'ascii') {
+    m.ramp = asciiRamp.value;
+    m.style = document.querySelector('input[name="style-mode"]:checked')?.value;
+  } else if (platformMode === 'line') {
+    m.threshold = parseInt(thresholdSlider.value);
+    m.thickness = parseFloat(lineThicknessSlider.value);
+  } else if (platformMode === 'typography') {
+    m.text = typoTextInput.value;
+    m.spacing = parseFloat(typoSpacingSlider.value);
+    m.weight = parseInt(typoWeightSlider.value);
+    m.letterSpacing = parseFloat(typoLetterSpacingSlider.value);
+  } else if (platformMode === 'halftone') {
+    m.spacing = parseFloat(spacingSlider.value);
+    m.rotation = parseInt(halftoneRotationSlider.value);
+    m.shape = document.querySelector('input[name="halftone-shape"]:checked')?.value;
+  } else if (platformMode === 'blueprint') {
+    m.threshold = parseInt(blueprintThresholdSlider?.value || 40);
+    m.thickness = parseFloat(blueprintThicknessSlider?.value || 0);
+    m.grid = parseInt(blueprintGridSlider?.value || 40);
+    m.opacity = parseInt(blueprintOpacitySlider?.value || 25);
+    m.theme = document.querySelector('input[name="blueprint-theme"]:checked')?.value;
+    m.annotations = document.querySelector('input[name="blueprint-annotations"]:checked')?.value;
+  }
+}
+
+function updateUISliders() {
+  const m = settingsByMode[platformMode];
+  if (!m) return;
+  densitySlider.value = m.density;
+  gammaSlider.value = m.gamma;
+  
+  if (platformMode === 'ascii') {
+    asciiRamp.value = m.ramp;
+    const radio = document.querySelector(`input[name="style-mode"][value="${m.style}"]`);
+    if (radio) radio.checked = true;
+  } else if (platformMode === 'line') {
+    thresholdSlider.value = m.threshold;
+    lineThicknessSlider.value = m.thickness;
+  } else if (platformMode === 'typography') {
+    typoTextInput.value = m.text;
+    typoSpacingSlider.value = m.spacing;
+    typoWeightSlider.value = m.weight;
+    typoLetterSpacingSlider.value = m.letterSpacing;
+  } else if (platformMode === 'halftone') {
+    spacingSlider.value = m.spacing;
+    halftoneRotationSlider.value = m.rotation;
+    const radio = document.querySelector(`input[name="halftone-shape"][value="${m.shape}"]`);
+    if (radio) radio.checked = true;
+  } else if (platformMode === 'blueprint') {
+    if (blueprintThresholdSlider) blueprintThresholdSlider.value = m.threshold;
+    if (blueprintThicknessSlider) blueprintThicknessSlider.value = m.thickness;
+    if (blueprintGridSlider) blueprintGridSlider.value = m.grid;
+    if (blueprintOpacitySlider) blueprintOpacitySlider.value = m.opacity;
+    const themeRadio = document.querySelector(`input[name="blueprint-theme"][value="${m.theme}"]`);
+    if (themeRadio) themeRadio.checked = true;
+    const annoRadio = document.querySelector(`input[name="blueprint-annotations"][value="${m.annotations}"]`);
+    if (annoRadio) annoRadio.checked = true;
+  }
+}
+
 function saveSettings() {
-  const settings = {
+  syncSettingsFromUI();
+  const globalSettings = {
     platformMode,
-    density: densitySlider.value,
-    contrast: contrastSlider.value,
-    gamma: gammaSlider.value,
-    asciiRamp: asciiRamp.value,
-    threshold: thresholdSlider.value,
-    lineThickness: lineThicknessSlider.value,
-    typoText: typoTextInput.value,
-    typoSpacing: typoSpacingSlider.value,
-    halftoneRotation: halftoneRotationSlider.value,
-    spacing: spacingSlider.value,
+    settingsByMode,
     aspectRatio: document.querySelector('input[name="aspect-ratio"]:checked')?.value,
     rotation: rotationSlider.value,
     flipH: flipHToggle.checked,
     flipV: flipVToggle.checked,
     padding: paddingSlider.value,
-    typoWeight: typoWeightSlider.value,
-    typoLetterSpacing: typoLetterSpacingSlider.value,
     blur: blurSlider.value,
     sharpness: sharpnessSlider.value,
+    postBrightness: postBrightnessSlider.value,
+    postContrast: postContrastSlider.value,
     grain: grainSlider.value,
     hueRotate: hueRotateSlider.value,
     colorMode: document.querySelector('input[name="color-mode"]:checked')?.value,
@@ -140,20 +214,14 @@ function saveSettings() {
     gradientAngle: gradientAngleSlider.value,
     artFgColor: artFgColor.value,
     artBgColor: artBgColor.value,
+    transparentBg: transparentBgToggle.checked,
     gradientColor1: gradientColor1.value,
     gradientColor2: gradientColor2.value,
     invert: invertToggle.checked,
     edge: edgeToggle.checked,
-    theme: document.documentElement.getAttribute('data-theme') || 'dark',
-    halftoneShape: document.querySelector('input[name="halftone-shape"]:checked')?.value,
-    blueprintThreshold: blueprintThresholdSlider?.value,
-    blueprintThickness: blueprintThicknessSlider?.value,
-    blueprintGrid: blueprintGridSlider?.value,
-    blueprintOpacity: blueprintOpacitySlider?.value,
-    blueprintTheme: document.querySelector('input[name="blueprint-theme"]:checked')?.value,
-    blueprintAnnotations: document.querySelector('input[name="blueprint-annotations"]:checked')?.value
+    theme: document.documentElement.getAttribute('data-theme') || 'dark'
   };
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(globalSettings));
 }
 
 function loadSettings() {
@@ -161,19 +229,29 @@ function loadSettings() {
   if (!saved) return;
   try {
     const s = JSON.parse(saved);
+    
+    // Migration: Port old global settings into mode-specific settings if needed
+    if (!s.settingsByMode) {
+      Object.keys(settingsByMode).forEach(mode => {
+        settingsByMode[mode].density = s.density || MODE_DEFAULTS[mode].density;
+        settingsByMode[mode].contrast = 1.2; // Stabilized neutral
+        settingsByMode[mode].gamma = s.gamma || MODE_DEFAULTS[mode].gamma;
+        settingsByMode[mode].brightness = 1.0;
+        
+        if (mode === 'ascii') {
+          settingsByMode[mode].ramp = s.asciiRamp || MODE_DEFAULTS[mode].ramp;
+          settingsByMode[mode].style = s.styleMode || MODE_DEFAULTS[mode].style;
+        } else if (mode === 'line') {
+          settingsByMode[mode].threshold = s.threshold || MODE_DEFAULTS[mode].threshold;
+          settingsByMode[mode].thickness = s.lineThickness || MODE_DEFAULTS[mode].thickness;
+        }
+      });
+    } else {
+      settingsByMode = s.settingsByMode;
+    }
+
     platformMode = s.platformMode || 'ascii';
     if (modeHint) modeHint.innerHTML = MODE_HINTS[platformMode];
-    
-    if (s.density) densitySlider.value = s.density;
-    if (s.contrast) contrastSlider.value = s.contrast;
-    if (s.gamma) gammaSlider.value = s.gamma;
-    if (s.asciiRamp) asciiRamp.value = s.asciiRamp;
-    if (s.threshold) thresholdSlider.value = s.threshold;
-    if (s.lineThickness) lineThicknessSlider.value = s.lineThickness;
-    if (s.typoText) typoTextInput.value = s.typoText;
-    if (s.typoSpacing) typoSpacingSlider.value = s.typoSpacing;
-    if (s.halftoneRotation) halftoneRotationSlider.value = s.halftoneRotation;
-    if (s.spacing) spacingSlider.value = s.spacing;
     
     if (s.aspectRatio) {
       const radio = document.querySelector(`input[name="aspect-ratio"][value="${s.aspectRatio}"]`);
@@ -183,25 +261,18 @@ function loadSettings() {
     if (s.flipH !== undefined) flipHToggle.checked = s.flipH;
     if (s.flipV !== undefined) flipVToggle.checked = s.flipV;
     if (s.padding) paddingSlider.value = s.padding;
-
     if (s.gradientAngle) gradientAngleSlider.value = s.gradientAngle;
-    
-    if (s.typoWeight) typoWeightSlider.value = s.typoWeight;
-    if (s.typoLetterSpacing) typoLetterSpacingSlider.value = s.typoLetterSpacing;
-    if (s.blueprintThreshold && blueprintThresholdSlider) blueprintThresholdSlider.value = s.blueprintThreshold;
-    if (s.blueprintThickness && blueprintThicknessSlider) blueprintThicknessSlider.value = s.blueprintThickness;
-    if (s.blueprintGrid && blueprintGridSlider) blueprintGridSlider.value = s.blueprintGrid;
-    if (s.blueprintOpacity && blueprintOpacitySlider) blueprintOpacitySlider.value = s.blueprintOpacity;
     if (s.blur) blurSlider.value = s.blur;
     if (s.sharpness) sharpnessSlider.value = s.sharpness;
+    if (s.postBrightness) postBrightnessSlider.value = s.postBrightness;
+    if (s.postContrast) postContrastSlider.value = s.postContrast;
     if (s.grain) grainSlider.value = s.grain;
     if (s.hueRotate) hueRotateSlider.value = s.hueRotate;
-    
     if (s.artFgColor) artFgColor.value = s.artFgColor;
     if (s.artBgColor) artBgColor.value = s.artBgColor;
+    if (s.transparentBg !== undefined) transparentBgToggle.checked = s.transparentBg;
     if (s.gradientColor1) gradientColor1.value = s.gradientColor1;
     if (s.gradientColor2) gradientColor2.value = s.gradientColor2;
-    
     if (s.invert !== undefined) invertToggle.checked = s.invert;
     if (s.edge !== undefined) edgeToggle.checked = s.edge;
     
@@ -213,18 +284,6 @@ function loadSettings() {
       const radio = document.querySelector(`input[name="gradient-type"][value="${s.gradientType}"]`);
       if (radio) radio.checked = true;
     }
-    if (s.halftoneShape) {
-      const radio = document.querySelector(`input[name="halftone-shape"][value="${s.halftoneShape}"]`);
-      if (radio) radio.checked = true;
-    }
-    if (s.blueprintTheme) {
-      const radio = document.querySelector(`input[name="blueprint-theme"][value="${s.blueprintTheme}"]`);
-      if (radio) radio.checked = true;
-    }
-    if (s.blueprintAnnotations) {
-      const radio = document.querySelector(`input[name="blueprint-annotations"][value="${s.blueprintAnnotations}"]`);
-      if (radio) radio.checked = true;
-    }
 
     if (s.theme) {
       document.documentElement.setAttribute('data-theme', s.theme);
@@ -233,9 +292,20 @@ function loadSettings() {
 
     modeTabs.forEach(t => t.classList.toggle('active', t.dataset.mode === platformMode));
     modeControls.forEach(ctrl => ctrl.classList.toggle('hidden', ctrl.id !== `${platformMode}-controls`));
+    
+    updateUISliders();
+    updateModeVisibility();
     updateColorModeVisibility();
     updateBadgeValues();
+    applyPreprocessingToOriginal();
   } catch (e) { console.error("Load failed", e); }
+}
+
+function applyPreprocessingToOriginal() {
+  if (!currentImage) return;
+  // Preprocessing filters removed for cleaner UI/Logic.
+  // We keep the image raw so the user focuses on the Art Polish.
+  originalImage.style.filter = 'none';
 }
 
 function updateThemeIcon(theme) {
@@ -289,12 +359,22 @@ function initWorker() {
     renderArt();
     isProcessing = false;
     artLoader.classList.add('hidden');
+    if (needsReProcessing) {
+      needsReProcessing = false;
+      processImage();
+    }
   };
   worker.onerror = (err) => {
     console.error("Worker Error:", err);
     isProcessing = false;
     artLoader.classList.add('hidden');
   };
+}
+
+function updateModeVisibility() {
+  const isTextMode = platformMode === 'ascii' || platformMode === 'typography';
+  asciiOutput.classList.toggle('hidden', !isTextMode);
+  canvasContainer.classList.toggle('hidden', isTextMode);
 }
 
 // Mode Switching
@@ -306,10 +386,13 @@ modeTabs.forEach(tab => {
     modeControls.forEach(ctrl => {
       ctrl.classList.toggle('hidden', ctrl.id !== `${platformMode}-controls`);
     });
-    const isTextMode = platformMode === 'ascii' || platformMode === 'typography';
-    asciiOutput.classList.toggle('hidden', !isTextMode);
-    canvasContainer.classList.toggle('hidden', isTextMode);
+    
+    updateModeVisibility();
+
     if (modeHint) modeHint.innerHTML = MODE_HINTS[platformMode];
+    updateUISliders();
+    updateBadgeValues();
+    applyPreprocessingToOriginal();
     saveSettings();
     if (currentImage) processImage();
   });
@@ -352,7 +435,20 @@ function updateColorModeVisibility() {
   }
 }
 
-document.querySelectorAll('input[name="color-mode"], input[name="gradient-type"], input[name="halftone-shape"], input[name="style-mode"]').forEach(radio => {
+document.querySelectorAll('input[name="style-mode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const val = radio.value;
+    if (val === 'detailed') asciiRamp.value = '@%#*+=-:. ';
+    else if (val === 'smooth') asciiRamp.value = '█▓▒░ ';
+    else if (val === 'block') asciiRamp.value = '■□▪▫ ';
+    else if (val === 'terminal') asciiRamp.value = '01 ';
+    
+    saveSettings();
+    if (currentImage) processImage();
+  });
+});
+
+document.querySelectorAll('input[name="color-mode"], input[name="gradient-type"], input[name="halftone-shape"]').forEach(radio => {
   radio.addEventListener('change', () => {
     updateColorModeVisibility();
     saveSettings();
@@ -377,24 +473,34 @@ document.querySelectorAll('input[name="aspect-ratio"]').forEach(radio => {
 });
 
 const allInputs = [
-  densitySlider, contrastSlider, gammaSlider, 
+  densitySlider, gammaSlider, 
   asciiRamp, thresholdSlider, lineThicknessSlider, 
   typoTextInput, typoSpacingSlider,
   halftoneRotationSlider, spacingSlider,
   artFgColor, artBgColor, gradientColor1, gradientColor2, gradientAngleSlider,
-  invertToggle, edgeToggle,
+  invertToggle, edgeToggle, transparentBgToggle,
   typoWeightSlider, typoLetterSpacingSlider,
   blueprintThresholdSlider, blueprintThicknessSlider, blueprintGridSlider, blueprintOpacitySlider,
-  blurSlider, sharpnessSlider, grainSlider, hueRotateSlider,
+  blurSlider, sharpnessSlider, postBrightnessSlider, postContrastSlider, grainSlider, hueRotateSlider,
   rotationSlider, flipHToggle, flipVToggle, paddingSlider
 ];
 
 allInputs.forEach(el => {
   if (el) {
+    // Double-click to reset range sliders
+    if (el.type === 'range') {
+      el.addEventListener('dblclick', () => {
+        el.value = el.defaultValue;
+        el.dispatchEvent(new Event('input'));
+      });
+    }
+
     el.addEventListener('input', () => {
+      syncSettingsFromUI();
       updateBadgeValues();
       saveSettings();
       if (currentImage) {
+        applyPreprocessingToOriginal();
         if (el === artFgColor || el === artBgColor || el === gradientColor1 || el === gradientColor2 || el === gradientAngleSlider ||
             el === typoWeightSlider || el === typoLetterSpacingSlider || 
             el === blueprintGridSlider || el === blueprintOpacitySlider ||
@@ -585,6 +691,19 @@ function loadImage(file, isRestore = false) {
       originalImage.src = objectUrl;
       dropZone.classList.add('hidden');
       previewContainer.classList.remove('hidden');
+      // Reset all modes to default on new image upload
+      if (!isRestore) {
+        settingsByMode = JSON.parse(JSON.stringify(MODE_DEFAULTS));
+        updateUISliders();
+        updateBadgeValues();
+        applyPreprocessingToOriginal();
+        updateModeVisibility();
+        // Switch to Art tab to show the result
+        tabBtns.forEach(btn => {
+          if (btn.dataset.tab === 'art') btn.click();
+        });
+      }
+      
       processImage();
       
       // Save to localStorage only if reasonably small (< 2MB roughly)
@@ -613,8 +732,13 @@ function loadImage(file, isRestore = false) {
 }
 
 function processImage() {
-  if (!currentImage || isProcessing) return;
+  if (!currentImage) return;
+  if (isProcessing) {
+    needsReProcessing = true;
+    return;
+  }
   isProcessing = true;
+  needsReProcessing = false;
 
   const aspectRatio = document.querySelector('input[name="aspect-ratio"]:checked')?.value || 'original';
   const rotation = parseInt(rotationSlider.value) || 0;
@@ -676,6 +800,10 @@ function processImage() {
     ctx.scale(1, charAspectRatio); // Puts context into pure square-pixel coordinate space
   }
   
+  // Preprocessing filters removed. Engine now uses neutral sensitivity
+  // as the user focuses on "Resolution & Studio Polish" for lighting.
+  ctx.filter = 'none';
+  
   // Move to the center of the square-pixel bounds
   ctx.translate(squareCanvasW / 2, squareCanvasH / 2);
   ctx.rotate((rotation * Math.PI) / 180);
@@ -689,14 +817,21 @@ function processImage() {
   const imageData = ctx.getImageData(0, 0, finalW, finalH);
 
   const settings = {
-    contrast: parseFloat(contrastSlider.value), brightness: 1.0, gamma: parseFloat(gammaSlider.value),
-    invert: invertToggle.checked, mode: document.querySelector('input[name="style-mode"]:checked')?.value,
-    customRamp: asciiRamp.value, edgeEnhancement: edgeToggle.checked, threshold: parseInt(thresholdSlider.value),
-    thickness: parseFloat(lineThicknessSlider.value), typoText: typoTextInput.value,
+    contrast: 1.2,    // Neutral internal engine value
+    brightness: 1.0,  // Neutral internal engine value
+    gamma: parseFloat(gammaSlider.value),
+    invert: invertToggle.checked,
+    mode: document.querySelector('input[name="style-mode"]:checked')?.value,
+    customRamp: asciiRamp.value,
+    edgeEnhancement: edgeToggle.checked,
+    threshold: parseInt(thresholdSlider.value),
+    thickness: parseFloat(lineThicknessSlider.value),
+    typoText: typoTextInput.value,
     blueprintThreshold: parseInt(blueprintThresholdSlider?.value || 40),
     blueprintThickness: parseFloat(blueprintThicknessSlider?.value || 0),
     spacing: parseFloat(platformMode === 'halftone' ? spacingSlider.value : typoSpacingSlider.value),
-    rotation: parseInt(halftoneRotationSlider.value), halftoneShape: document.querySelector('input[name="halftone-shape"]:checked')?.value
+    rotation: parseInt(halftoneRotationSlider.value),
+    halftoneShape: document.querySelector('input[name="halftone-shape"]:checked')?.value
   };
   if (!worker) initWorker();
   artLoader.classList.remove('hidden');
@@ -711,7 +846,8 @@ function renderArt() {
   if (!currentArtData) return;
   const colorMode = document.querySelector('input[name="color-mode"]:checked')?.value || 'solid';
   const gradientType = document.querySelector('input[name="gradient-type"]:checked')?.value || 'linear';
-  const bgColor = artBgColor.value;
+  const isTransparent = transparentBgToggle.checked;
+  const bgColor = isTransparent ? 'transparent' : artBgColor.value;
   const fgColor = artFgColor.value;
   const gColor1 = gradientColor1.value;
   const gColor2 = gradientColor2.value;
@@ -753,7 +889,9 @@ function renderArt() {
 function applyPostProcessing() {
   const filters = [
     `blur(${blurSlider.value}px)`,
-    `contrast(${sharpnessSlider.value}%)`,
+    `contrast(${postContrastSlider.value}%)`,
+    `brightness(${postBrightnessSlider.value}%)`,
+    `saturate(${sharpnessSlider.value}%)`, // Color Vibrancy
     `hue-rotate(${hueRotateSlider.value}deg)`
   ];
   
@@ -812,8 +950,15 @@ function getCanvasFill(ctx, width, height) {
 function renderCanvasArt({ imageData, width, height }) {
   artCanvas.width = width; artCanvas.height = height;
   const ctx = artCanvas.getContext('2d');
-  ctx.fillStyle = artBgColor.value;
-  ctx.fillRect(0, 0, width, height);
+  
+  const isTransparent = transparentBgToggle.checked;
+  if (isTransparent) {
+    ctx.clearRect(0, 0, width, height);
+  } else {
+    ctx.fillStyle = artBgColor.value;
+    ctx.fillRect(0, 0, width, height);
+  }
+  
   const fill = getCanvasFill(ctx, width, height);
   const tempCanvas = document.createElement('canvas'); tempCanvas.width = width; tempCanvas.height = height;
   const tctx = tempCanvas.getContext('2d');
@@ -827,7 +972,15 @@ function renderCanvasArt({ imageData, width, height }) {
 function renderHalftone({ dots, width, height }) {
   artCanvas.width = width * 10; artCanvas.height = height * 10;
   const ctx = artCanvas.getContext('2d');
-  ctx.fillStyle = artBgColor.value; ctx.fillRect(0, 0, artCanvas.width, artCanvas.height);
+  
+  const isTransparent = transparentBgToggle.checked;
+  if (isTransparent) {
+    ctx.clearRect(0, 0, artCanvas.width, artCanvas.height);
+  } else {
+    ctx.fillStyle = artBgColor.value;
+    ctx.fillRect(0, 0, artCanvas.width, artCanvas.height);
+  }
+  
   const fill = getCanvasFill(ctx, artCanvas.width, artCanvas.height);
   ctx.fillStyle = fill;
   dots.forEach(dot => {
@@ -858,8 +1011,13 @@ function renderBlueprint({ imageData, width, height }) {
   const ctx = artCanvas.getContext('2d');
 
   // Layer 1: Background
-  ctx.fillStyle = colors.bg;
-  ctx.fillRect(0, 0, artCanvas.width, artCanvas.height);
+  const isTransparent = transparentBgToggle.checked;
+  if (isTransparent) {
+    ctx.clearRect(0, 0, artCanvas.width, artCanvas.height);
+  } else {
+    ctx.fillStyle = colors.bg;
+    ctx.fillRect(0, 0, artCanvas.width, artCanvas.height);
+  }
 
   // Layer 2: Grid
   ctx.save();
@@ -971,12 +1129,14 @@ function renderBlueprint({ imageData, width, height }) {
 }
 
 function updateBadgeValues() {
-  densityValue.textContent = densitySlider.value; contrastValue.textContent = contrastSlider.value;
-  gammaValue.textContent = gammaSlider.value;  thresholdValue.textContent = thresholdSlider.value;
-  lineThicknessValue.textContent = lineThicknessSlider.value; typoSpacingValue.textContent = typoSpacingSlider.value;
-  halftoneRotationValue.textContent = `${halftoneRotationSlider.value}°`; spacingValue.textContent = spacingSlider.value;
+  densityValue.textContent = densitySlider.value;
+  gammaValue.textContent = gammaSlider.value;
+  thresholdValue.textContent = thresholdSlider.value;
+  lineThicknessValue.textContent = lineThicknessSlider.value;
+  typoSpacingValue.textContent = typoSpacingSlider.value;
+  halftoneRotationValue.textContent = `${halftoneRotationSlider.value}°`;
+  spacingValue.textContent = spacingSlider.value;
   gradientAngleValue.textContent = `${gradientAngleSlider.value}°`;
-
   typoWeightValue.textContent = typoWeightSlider.value;
   typoLetterSpacingValue.textContent = `${typoLetterSpacingSlider.value}em`;
   if (blueprintThresholdValue && blueprintThresholdSlider) blueprintThresholdValue.textContent = blueprintThresholdSlider.value;
@@ -985,9 +1145,10 @@ function updateBadgeValues() {
   if (blueprintOpacityValue && blueprintOpacitySlider) blueprintOpacityValue.textContent = `${blueprintOpacitySlider.value}%`;
   blurValue.textContent = `${blurSlider.value}px`;
   sharpnessValue.textContent = `${sharpnessSlider.value}%`;
+  postBrightnessValue.textContent = `${postBrightnessSlider.value}%`;
+  postContrastValue.textContent = `${postContrastSlider.value}%`;
   grainValue.textContent = `${grainSlider.value}%`;
   hueRotateValue.textContent = `${hueRotateSlider.value}°`;
-  
   rotationValue.textContent = `${rotationSlider.value}°`;
   paddingValue.textContent = `${paddingSlider.value}px`;
 }
@@ -1009,10 +1170,16 @@ document.getElementById('export-svg').addEventListener('click', () => {
 });
 
 function generateSvgString() {
-  const bgColor = artBgColor.value;
+  const isTransparent = transparentBgToggle.checked;
+  const bgColor = isTransparent ? 'none' : artBgColor.value;
   if (platformMode === 'ascii' || platformMode === 'typography') return generateTextSvg(currentArtData.ascii);
   else if (platformMode === 'halftone') return generateHalftoneSvg(currentArtData.dots, currentArtData.width, currentArtData.height);
-  else return `<svg width="${currentArtData.width}" height="${currentArtData.height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="${bgColor}"/><image href="${artCanvas.toDataURL()}" width="100%" height="100%" /></svg>`;
+  else {
+    let svg = `<svg width="${currentArtData.width}" height="${currentArtData.height}" xmlns="http://www.w3.org/2000/svg">`;
+    if (!isTransparent) svg += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
+    svg += `<image href="${artCanvas.toDataURL()}" width="100%" height="100%" /></svg>`;
+    return svg;
+  }
 }
 
 function generateTextSvg(text) {
@@ -1021,11 +1188,13 @@ function generateTextSvg(text) {
   const width = lines[0].length * charWidth + 40, height = lines.length * lineHeight + 40;
   const colorMode = document.querySelector('input[name="color-mode"]:checked')?.value || 'solid';
   const gradientType = document.querySelector('input[name="gradient-type"]:checked')?.value || 'linear';
-  const bgColor = artBgColor.value;
+  const isTransparent = transparentBgToggle.checked;
+  const bgColor = isTransparent ? 'none' : artBgColor.value;
   const gColor1 = gradientColor1.value;
   const gColor2 = gradientColor2.value;
   const fgColor = artFgColor.value;
-  let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="${bgColor}"/>`;
+  let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`;
+  if (!isTransparent) svg += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
   if (colorMode === 'gradient') {
     if (gradientType === 'linear') svg += `<defs><linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="100%" gradientTransform="rotate(${gradientAngleSlider.value})"><stop offset="0%" stop-color="${gColor1}" /><stop offset="100%" stop-color="${gColor2}" /></linearGradient></defs>`;
     else svg += `<defs><radialGradient id="textGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%"><stop offset="0%" stop-color="${gColor1}" /><stop offset="100%" stop-color="${gColor2}" /></radialGradient></defs>`;
@@ -1039,11 +1208,13 @@ function generateHalftoneSvg(dots, w, h) {
   const width = w * 10, height = h * 10;
   const colorMode = document.querySelector('input[name="color-mode"]:checked')?.value || 'solid';
   const gradientType = document.querySelector('input[name="gradient-type"]:checked')?.value || 'linear';
-  const bgColor = artBgColor.value;
+  const isTransparent = transparentBgToggle.checked;
+  const bgColor = isTransparent ? 'none' : artBgColor.value;
   const gColor1 = gradientColor1.value;
   const gColor2 = gradientColor2.value;
   const fgColor = artFgColor.value;
-  let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="${bgColor}"/>`;
+  let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`;
+  if (!isTransparent) svg += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
   let fill = fgColor;
   if (colorMode === 'gradient') {
     if (gradientType === 'linear') svg += `<defs><linearGradient id="halftoneGrad" x1="0%" y1="0%" x2="100%" y2="100%" gradientTransform="rotate(${gradientAngleSlider.value})"><stop offset="0%" stop-color="${gColor1}" /><stop offset="100%" stop-color="${gColor2}" /></linearGradient></defs>`;
@@ -1062,7 +1233,14 @@ function exportTextToPng(text) {
   if (lines[lines.length - 1] === '') lines.pop();
   const fontSize = 16, lineHeight = fontSize, charWidth = fontSize * 0.6;
   canvas.width = lines[0].length * charWidth + 40; canvas.height = lines.length * lineHeight + 40;
-  ctx.fillStyle = artBgColor.value; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  const isTransparent = transparentBgToggle.checked;
+  if (isTransparent) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = artBgColor.value;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
   const fill = getCanvasFill(ctx, canvas.width, canvas.height);
   ctx.font = `${fontSize}px "JetBrains Mono", monospace`; ctx.fillStyle = fill; ctx.textBaseline = 'top';
   lines.forEach((line, i) => { ctx.fillText(line, 20, 20 + i * lineHeight); });
@@ -1076,10 +1254,19 @@ function escapeHtml(text) {
 
 tabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
-    tabBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active');
-    const tab = btn.dataset.tab, isArt = tab === 'art', isTextMode = platformMode === 'ascii' || platformMode === 'typography';
-    if (isArt) { asciiOutput.classList.toggle('hidden', !isTextMode); canvasContainer.classList.toggle('hidden', isTextMode); originalImage.classList.add('hidden'); }
-    else { asciiOutput.classList.add('hidden'); canvasContainer.classList.add('hidden'); originalImage.classList.remove('hidden'); }
+    tabBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    const isArt = tab === 'art';
+    
+    if (isArt) {
+      updateModeVisibility();
+      originalImage.classList.add('hidden');
+    } else {
+      asciiOutput.classList.add('hidden');
+      canvasContainer.classList.add('hidden');
+      originalImage.classList.remove('hidden');
+    }
   });
 });
 
